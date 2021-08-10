@@ -1,0 +1,18 @@
+# TRANSCRIPTION SETTINGS
+SERVICE_NAME= # STT service name, use to connect to the proper redis channel and mongo collection
+RESSOURCE_FOLDER= # (Shared) Folder where ressources are written
+KEEP_AUDIO=0 # Wether or not the audio file is kept after the request is answered
+
+#GUNICORN SETTINGS
+GUNICORN_HOST=localhost
+GUNICORN_PORT=8000
+GUNICORN_WORKERS=4
+
+#CELERY CONFIG
+SERVICES_BROKER= # Service broker uri
+
+#MONGODB
+MONGO_HOST= # Result database host
+MONGO_PORT=27017 # Result database port
+MONGO_USER=
+MONGO_PSWD=
