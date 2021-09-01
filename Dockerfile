@@ -13,7 +13,7 @@ RUN mkdir -p /var/log/supervisor/
 
 ENV PYTHONPATH="${PYTHONPATH}:/usr/src/app/transcriptionservice"
 
-HEALTHCHECK CMD curl localhost:8000/healthcheck
+HEALTHCHECK CMD curl localhost:80/healthcheck
 
 EXPOSE 80
 EXPOSE 5555
