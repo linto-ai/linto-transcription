@@ -6,31 +6,30 @@ __all__ = ["createParser"]
 def createParser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
 
-    # SHARED FOLDER
-    parser.add_argument(
-        '--ressource_folder',
-        type=str,
-        help='Shared folder root to register ressources (default=/opt/audio)',
-        default=os.environ.get("RESSOURCE_FOLDER", "/opt/audio"))
 
     # GUNICORN
-    parser.add_argument(
-        '--gunicorn_host',
-        type=str,
-        help='Serving host (default=localhost)',
-        default=os.environ.get("GUNICORN_HOST", "localhost"))
-    
-    parser.add_argument(
-        '--gunicorn_port',
-        type=int,
-        help='Serving port (default=8000)',
-        default=os.environ.get("GUNICORN_PORT", 8000))
-
     parser.add_argument(
         '--gunicorn_workers',
         type=int,
         help='Serving workers (default=4)',
         default=os.environ.get("GUNICORN_WORKERS", 4))
+
+    # SWAGGER
+    parser.add_argument(
+        '--swagger_url',
+        type=str,
+        help='Swagger interface url',
+        default='/api-doc')
+    parser.add_argument(
+        '--swagger_prefix',
+        type=str,
+        help='Swagger prefix',
+        default=os.environ.get('SWAGGER_PREFIX', ''))
+    parser.add_argument(
+        '--swagger_path',
+        type=str,
+        help='Swagger file path',
+        default=os.environ.get('SWAGGER_PATH', '/usr/src/app/transcriptionservice/document/swagger.yaml'))
 
     # MONGODB
     parser.add_argument(

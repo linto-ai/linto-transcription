@@ -1,0 +1,71 @@
+swagger: "2.0"
+
+info:
+  version: 1.0.0
+  title: Transcription service
+  description: Transcription request interface
+
+schemes:
+  - http
+host: localhost:8000
+basePath: /
+
+paths:
+  /transcribe:
+    post:
+      tags:
+        - "Speech-To-Text API"
+      summary: Perform Speech-to-Text
+      consumes:
+      - "multipart/form-data"
+      produces:
+      - "application/json"
+      - "text/plain"
+      parameters: 
+      - name: "file"
+        in: "formData"
+        description: "Audio File - Waveform Audio File Format is required. Best configuration (16KHz, 16b, mono)"
+        required: true
+        type: "file"
+      - name: "format"
+        in: "formData"
+        description: "Return transcription format"
+        required: false
+        type: string
+        enum: [raw, speakers, formated]
+      - name: "spk_number"
+        in: "formData"
+        description: "Number of speaker if diarization is required (formats speakers & formated)"
+        required: false
+        type: integer
+      - name: "no_cache"
+        in: "formData"
+        description: "If true, does not fetch result in DB"
+        required: false
+        type: boolean
+      responses:
+        200:
+          description: Successfully transcribed the audio
+        201:
+          description: Successfully created transcription job
+  /job/{jobid}:
+    get:
+      tags:
+        - "Job status"
+      summary: Return job status or result if available
+      produces:
+        - "application/json"
+        - "text/plain"
+      parameters:
+        - name: "jobid"
+          in: path
+          required: true
+          description: "Transcription jobid returned by a transcription request"
+          type: string
+      responses:
+        200:
+          description: Successfully transcribed the audio
+        202:
+          description: Task is still processing
+        400:
+          description: Task has failed or do not exist

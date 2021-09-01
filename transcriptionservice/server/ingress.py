@@ -9,9 +9,13 @@ from flask import Flask, request, abort, Response, json
 
 from transcriptionservice.server.serving import GunicornServing
 from transcriptionservice.workers.tasks import transcription_task
-from transcriptionservice.server.utils import createParser, fileHash, requestlog
+from transcriptionservice.server.confparser import createParser
+from transcriptionservice.server.swagger import setupSwaggerUI
+from transcriptionservice.server.utils import fileHash, requestlog
 from transcriptionservice.server.utils.ressources import write_ressource
 from transcriptionservice.server.mongodb.db_client import DBClient
+
+AUDIO_FOLDER = "/opt/audio"
 
 app = Flask("__services_manager__")
 
@@ -21,7 +25,6 @@ logger = logging.getLogger("__services_manager__")
 @app.route('/healthcheck', methods=["GET"])
 def healthcheck():
     """ Server healthcheck """
-    logger.info("Received healthcheck request")
     return "1", 200
 
 @app.route('/job/<jobid>', methods=["GET"])
@@ -51,7 +54,7 @@ def transcription():
 
     # Expected return format
     output_format = request.form.get("format", "raw")
-
+    logger.debug(request.form.keys())
     # Don't use cached result
     no_cache = request.form.get("no_cache", False) in [True, "True", "true", "1", 1]
 
@@ -75,7 +78,7 @@ def transcription():
     # If no previous result
     # Create ressource
     try:
-        file_path = write_ressource(file_buffer, file_hash, config.ressource_folder)
+        file_path = write_ressource(file_buffer, file_hash, AUDIO_FOLDER)
     except Exception as e:
         logger.error("Failed to write ressource: {}".format(e))
         return "Server Error: Failed to write ressource", 500
@@ -116,6 +119,14 @@ if __name__ == '__main__':
     config = parser.parse_args()
     logger.setLevel(logging.DEBUG if config.debug else logging.INFO)
 
+    try:
+        # Setup SwaggerUI
+        if config.swagger_path is not None:
+            setupSwaggerUI(app, config)
+            logger.debug("Swagger UI set.")
+    except Exception as e:
+        logger.warning("Could not setup swagger: {}".format(str(e)))
+
     # Results database info
     db_info = {"db_host" : config.mongo_uri, 
                "db_port" : config.mongo_port, 
@@ -126,7 +137,7 @@ if __name__ == '__main__':
 
     logger.info("Starting ingress")
     logger.debug(config)
-    serving = GunicornServing(app, {'bind': '{}:{}'.format(config.gunicorn_host, config.gunicorn_port),
+    serving = GunicornServing(app, {'bind': '{}:{}'.format('0.0.0.0', 80),
                                     'workers': config.gunicorn_workers,})
 
     try:

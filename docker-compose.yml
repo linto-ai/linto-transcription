@@ -1,0 +1,19 @@
+version: '3.5'
+
+services:
+  transcription-service:
+    build: .
+    container_name: ${SERVICE_NAME}_transcription_service
+    image: transcription_service:latest
+    volumes:
+      - ${RESSOURCE_FOLDER}:/opt/audio
+    env_file: .env
+    ports:
+      - target: 80
+        published: 8000
+      - target: 5555
+        published: 5555
+    expose: 
+      - "80"
+      - "5555"
+  

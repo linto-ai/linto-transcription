@@ -8,11 +8,12 @@ INGRESS_API = "{}/transcribe".format(INGRESS_HOST)
 JOB_API = "{}/job/".format(INGRESS_HOST)
 FILE = "bonjour.wav" #"small_conv_2.wav"
 FORMAT= "raw"
+SPEAKERS=3
 NO_CACHE=True
 
 if __name__ == "__main__":
     try:
-        response = requests.post(INGRESS_API, headers={"accept":"application/json"}, data={"format" : FORMAT, "no_cache": NO_CACHE}, files={'file' : open(FILE, 'rb').read()})
+        response = requests.post(INGRESS_API, headers={"accept":"application/json"}, data={"format" : FORMAT, "no_cache": NO_CACHE, "spk_number" : SPEAKERS}, files={'file' : open(FILE, 'rb').read()})
     except:
         print("Failed to establish connexion at {}".format(INGRESS_API))
         exit(-1)

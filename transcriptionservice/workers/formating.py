@@ -1,6 +1,6 @@
 import re
 
-def clean_text(text):
+def clean_text(text: str) -> str:
     #Remove extra symbols from text
     text = re.sub(r"<unk>", "", text)  # remove <unk> symbol
     text = re.sub(r"#nonterm:[^ ]* ", "", text)  # remove entity's mark
@@ -9,10 +9,11 @@ def clean_text(text):
     text = text.strip()
     return text
 
-def speakers_format(trans_data, speakers_data):
+def speakers_format(trans_data: dict, speakers_data: dict) -> dict:
     # Merge transcription and diarization into one json
     words = sorted(trans_data["words"], key=lambda x: x["start"])
-    segments = sorted(speakers_data, key=lambda x: x["seg_begin"])
+    print(speakers_data)
+    segments = sorted(speakers_data["segments"], key=lambda x: x["seg_begin"])
     output_speakers = []
     output_lines = []
     spk_index = 0
@@ -27,7 +28,8 @@ def speakers_format(trans_data, speakers_data):
                 current_speaker["start"] = current_speaker["words"][0]["start"]
                 current_speaker["end"] = current_speaker["words"][-1]["end"]
                 output_speakers.append(current_speaker)
-            spk_index += 1
+            if spk_index + 1 < len(segments):
+                spk_index += 1
             current_speaker = {"speaker_id" : segments[spk_index]["spk_id"]}
             current_speaker["words"] = []
         current_speaker["words"].append(word)
