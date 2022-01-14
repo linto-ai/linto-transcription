@@ -20,6 +20,8 @@ db_info = {"db_host" : os.environ.get("MONGO_HOST", None),
            "db_port" : int(os.environ.get("MONGO_PORT", None)),
            "service_name" : os.environ.get("SERVICE_NAME", None),
            "db_name": "result_db"}
+
+language = os.environ.get("LANGUAGE", None)
            
 db_client = DBClient(db_info)
 
@@ -52,7 +54,7 @@ def transcription_task(self, task_info: dict, file_path: str):
     if do_diarization and not "diarization_worker" in worker_names:
         raise Exception("Request required diarization but no diarization service is running.")
 
-    if do_punctuation and not "punctuation_worker" in worker_names:
+    if do_punctuation and not f"punctuation_{language}" in worker_names:
         raise Exception("Request required punctuation but no punctuation service is running.")
 
     # Preprocessing
@@ -72,7 +74,7 @@ def transcription_task(self, task_info: dict, file_path: str):
     # Transcription
     transJobIds = []
     for subfile_path, offset, duration in subfiles:
-        transJobId = celery.send_task(name="transcribe_task", queue=task_info["service_name"], args=[subfile_path, do_diarization])
+        transJobId = celery.send_task(name="transcribe_task", queue=task_info["service_name"], args=[subfile_path, True])
         transJobIds.append((transJobId, offset, duration, subfile_path))
 
     # Diarization (In parallel)
@@ -85,7 +87,6 @@ def transcription_task(self, task_info: dict, file_path: str):
     
     # Wait for all the transcription jobs
     transcriptions = []
-    
     pc_trans = 0.0
     failed = False
     for jobId, offset, duration, subfile_path in transJobIds:
@@ -119,19 +120,19 @@ def transcription_task(self, task_info: dict, file_path: str):
         else:
             transcription_result.setDiarizationResult(speakers)
         current_step += 1
+    else:
+        transcription_result.setNoDiarization()
+
     # Punctuation 
     if do_punctuation:
         self.update_state(state="STARTED", meta={"current": current_step, "total": total_step, "step": "Punctuation"})
-        puncJobId = celery.send_task(name="punctuation_task", queue='punctuation', args=[[seg.toString() for seg in transcription_result.segments]])
+        puncJobId = celery.send_task(name="punctuation_task", queue=f'punctuation_{language}', args=[[seg.toString() for seg in transcription_result.segments]])
         try: 
             punctuated_text = puncJobId.get(disable_sync_subtasks=False)
         except Exception as e:
             raise Exception("Punctuation has failed: {}".format(str(e)))
         current_step += 1
-        transcription_result.punctuated = punctuated_text
-
-    # Prepare response
-
+        transcription_result.setProcessedSegment(punctuated_text)
 
     # Write result in database
     self.update_state(state="STARTED", meta={"current": current_step, "total": total_step, "step": "Cleaning"})
@@ -147,4 +148,4 @@ def transcription_task(self, task_info: dict, file_path: str):
         except Exception as e:
             print("Failed to remove ressource {}".format(file_path))
 
-    return {"result": transcription_result.final_result()}
+    return transcription_result.final_result()

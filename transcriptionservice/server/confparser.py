@@ -51,6 +51,13 @@ def createParser() -> argparse.ArgumentParser:
         help='Service name (default=stt)',
         default=os.environ.get("SERVICE_NAME", "stt"))
 
+    parser.add_argument(
+        '--language',
+        type=str,
+        help='Transcription language, required for some subtasks.',
+        default=os.environ.get("LANGUAGE", None)
+    )
+
     # MISC
     parser.add_argument(
         '--keep_audio',

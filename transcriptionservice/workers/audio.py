@@ -1,5 +1,6 @@
 import os 
 import subprocess
+from typing import List, Tuple
 
 import numpy as np
 import webrtcvad
@@ -72,18 +73,22 @@ def vadCutIndexes(audio, sample_rate, chunk_length: float = 0.03, mode: int = 1,
     # Returns cut_indexes as list
     return (np.array(cut_indexes) * chunk_size).astype(np.int).tolist()
 
-def splitFile(file_path) -> list:
+def splitFile(file_path, min_length: int = 10) -> Tuple[List[Tuple[str, float, float]], float]:
     """ Split a file into multiple subfiles using vad """
     content = wavio.read(file_path)
     sr = content.rate
     audio = np.squeeze(content.data)
-    
+
+    # Do not split file under min_length
+    if len(audio) / sr < min_length:
+        return [(file_path, 0.0, len(audio))], len(audio)
+
     #Get cut indexex based on vad
     cut_indexes = vadCutIndexes(audio, sr)
 
     # If no cut detected
     if len(cut_indexes) == 0:
-        return file_path, 0.0, len(audio)
+        return [(file_path, 0.0, len(audio))], len(audio)
     basename = ".".join(file_path.split(".")[:-1])
     
     # Create subfiles

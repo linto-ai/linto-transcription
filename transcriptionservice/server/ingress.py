@@ -11,7 +11,7 @@ from transcriptionservice.server.serving import GunicornServing
 from transcriptionservice.workers.transcription_task import transcription_task
 from transcriptionservice.server.confparser import createParser
 from transcriptionservice.server.swagger import setupSwaggerUI
-from transcriptionservice.server.utils import fileHash, requestlog, TranscriptionConfig
+from transcriptionservice.server.utils import fileHash, requestlog, TranscriptionConfig, TranscriptionResult
 from transcriptionservice.server.utils.ressources import write_ressource
 from transcriptionservice.server.mongodb.db_client import DBClient
 
@@ -29,19 +29,20 @@ def healthcheck():
 
 @app.route('/job/<jobid>', methods=["GET"])
 def jobstatus(jobid):
+    json_format = request.headers.get('accept') == 'application/json'
+    if not json_format and request.headers.get('accept') != 'text/plain':
+        return f"Accept format {request.headers.get('accept')} not valid (Must be application/json or text/plain)", 400
     task = AsyncResult(jobid)
     state = task.status
     if state == "STARTED":
         return json.dumps({"state": "started", "progress" : task.info}), 202
     elif state == "SUCCESS":
         result = task.get()
-        if type(result["result"]) is list:
-            return json.dumps(result["result"], ensure_ascii=False), 200
-        return result["result"], 200
+        return result if json_format else result["transcription_result"], 200
     elif state == "PENDING":
         return json.dumps({"state": "pending",}), 202
     elif state == "FAILURE":
-        return json.dumps({"state": "failed", "reason": str(task.result)}), 400
+        return json.dumps({"state": "failed", "reason": str(task.result)}), 500
     else:
         return "Task returned an unknown state", 400
 
@@ -62,12 +63,12 @@ def transcription():
     # Parse Transcription config
     ## Return format
     json_format = request.headers.get('accept') == 'application/json'
-    if not request.headers.get('accept') == 'application/json':
+    if not json_format and request.headers.get('accept') != 'text/plain':
         return f"Accept format {request.headers.get('accept')} not valid (Must be application/json or text/plain)", 400
     logger.debug(request.headers.get('accept'))
 
     # Request flags
-    no_cache = request.form.get("no_cache", False)
+    no_cache = True #request.form.get("no_cache", False)
     force_sync = request.form.get("force_sync", False)
 
     # Parse transcription config
@@ -110,11 +111,11 @@ def transcription():
         result = task.get()
         state = task.status
         if state == "SUCCESS":
-            return result["result"], 200
+            return result if json_format else result["transcription_result"], 200
         else:
             return json.dumps({"state": "failed", "reason": str(task.result)}), 400
 
-    return json.dumps({"jobid" : task.id}), 201
+    return (json.dumps({"jobid" : task.id}) if json_format else task.id), 201
 
 @app.route('/revoke/<jobid>', methods=["GET"])
 def revoke(jobid):

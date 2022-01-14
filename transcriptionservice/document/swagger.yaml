@@ -62,6 +62,14 @@ paths:
         
   /job/{jobid}:
     get:
+      parameters:
+        - name: "jobid"
+          in: path
+          required: true
+          description: Job request ID
+          schema:
+            type: string
+
       responses:
         200:
           description: "Job successfully finished"
