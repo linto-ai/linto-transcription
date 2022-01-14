@@ -64,10 +64,12 @@ docker-compose up .
 | Env variable| Description | Example |
 |:-|:-|:-|
 |SERVICE_NAME| STT service name, use to connect to the proper redis channel and mongo collection|my_stt_service|
+|LANGUAGE| Language code as a BCP-47 code | fr_FR |
 |RESSOURCE_FOLDER|Shared folder (host)|~/linto_shared_mount/|
 |KEEP_AUDIO|Either audio files are kept after request|1 (true) / 0 (false)|
 |GUNICORN_WORKERS|Gunicorn serving worker (default 4)|4|
-|SERVICES_BROKER|Redis broker address|redis://broker_address:6379|
+|SERVICES_BROKER|Message broker address|redis://broker_address:6379|
+|BROKER_PASS|Broker Password| Password|
 |MONGO_HOST|MongoDB results url|my-mongo-service|
 |MONGO_PORT|MongoDB results port|27017|
 |MONGO_USER|MongoDB user|user|
@@ -91,7 +93,7 @@ The /transcribe route allows POST request containing an audio file.
 
 If the request is accepted, answer will be ```201``` with a json response containing the jobid.
 ```json
-{"jobid" : "the-job-id"""}
+{"jobid" : "the-job-id"}
 ```
 
 If the result has already been computed, the request returns a ```200``` with the transcription.

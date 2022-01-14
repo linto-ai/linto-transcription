@@ -3,6 +3,8 @@ LABEL maintainer="rbaraglia@linagora.com"
 
 WORKDIR /usr/src/app
 
+RUN apt-get update && apt-get -y install ffmpeg
+
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -16,7 +18,6 @@ ENV PYTHONPATH="${PYTHONPATH}:/usr/src/app/transcriptionservice"
 HEALTHCHECK CMD curl localhost:80/healthcheck
 
 EXPOSE 80
-EXPOSE 5555
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
 

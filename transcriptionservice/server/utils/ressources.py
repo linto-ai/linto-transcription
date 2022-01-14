@@ -5,9 +5,9 @@ __all__ = ["write_ressource", "release_ressource"]
 
 logger = logging.getLogger("__services_manager__")
 
-def write_ressource(file_content: bytes, file_name: str, ressource_folder: str) -> str:
+def write_ressource(file_content: bytes, file_name: str, ressource_folder: str, extension: str) -> str:
     """ Write ressource to the ressource folder """
-    file_path = os.path.join(ressource_folder, file_name + ".wav")
+    file_path = os.path.join(ressource_folder, f"{file_name}.{extension}")
     logger.debug("Write ressource {} at {}".format(file_name, file_path))
     with open(file_path, 'wb') as f:
         f.write(file_content)

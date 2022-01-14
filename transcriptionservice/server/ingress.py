@@ -8,10 +8,10 @@ from celery.result import AsyncResult
 from flask import Flask, request, abort, Response, json
 
 from transcriptionservice.server.serving import GunicornServing
-from transcriptionservice.workers.tasks import transcription_task
+from transcriptionservice.workers.transcription_task import transcription_task
 from transcriptionservice.server.confparser import createParser
 from transcriptionservice.server.swagger import setupSwaggerUI
-from transcriptionservice.server.utils import fileHash, requestlog
+from transcriptionservice.server.utils import fileHash, requestlog, TranscriptionConfig
 from transcriptionservice.server.utils.ressources import write_ressource
 from transcriptionservice.server.mongodb.db_client import DBClient
 
@@ -35,7 +35,9 @@ def jobstatus(jobid):
         return json.dumps({"state": "started", "progress" : task.info}), 202
     elif state == "SUCCESS":
         result = task.get()
-        return json.dumps({"state" : "done", "result": result["result"]}), 200
+        if type(result["result"]) is list:
+            return json.dumps(result["result"], ensure_ascii=False), 200
+        return result["result"], 200
     elif state == "PENDING":
         return json.dumps({"state": "pending",}), 202
     elif state == "FAILURE":
@@ -46,20 +48,31 @@ def jobstatus(jobid):
 @app.route('/transcribe', methods=["POST"])
 def transcription():
     # Get file and generate hash
-    if 'file' not in request.files.keys():
+    if not len(list(request.files.keys())):
         return "Not file attached to request", 400
     
-    file_buffer = request.files['file'].read()
-    file_hash = fileHash(file_buffer)   
+    elif len(list(request.files.keys())) > 1:
+        logger.warning("Received multiple files at once. Multifile is not supported yet, n>1 file are ignored")
+    
+    file_key = list(request.files.keys())[0]
+    file_buffer = request.files[file_key].read()
+    extension = request.files[file_key].filename.split(".")[-1]
+    file_hash = fileHash(file_buffer)
 
-    # Expected return format
-    output_format = request.form.get("format", "raw")
-    logger.debug(request.form.keys())
-    # Don't use cached result
-    no_cache = request.form.get("no_cache", False) in [True, "True", "true", "1", 1]
+    # Parse Transcription config
+    ## Return format
+    json_format = request.headers.get('accept') == 'application/json'
+    if not request.headers.get('accept') == 'application/json':
+        return f"Accept format {request.headers.get('accept')} not valid (Must be application/json or text/plain)", 400
+    logger.debug(request.headers.get('accept'))
 
-    # If the number of speaker is specified
-    spk_number = request.form.get("spk_number", None)
+    # Request flags
+    no_cache = request.form.get("no_cache", False)
+    force_sync = request.form.get("force_sync", False)
+
+    # Parse transcription config
+    transcription_config = TranscriptionConfig(request.form.get("transcriptionConfig", {}), json_format)
+    logger.debug(request.form.get("transcriptionConfig", {}))
 
     # Check DATABASE for results
     logger.debug("is nocache: {}".format(no_cache))
@@ -69,7 +82,7 @@ def transcription():
         result = db_client.check_for_result(file_hash,
                                             output_format)
     
-    requestlog(logger, request.remote_addr, output_format, file_hash, result is not None)
+    requestlog(logger, request.remote_addr, transcription_config, file_hash, result is not None)
 
     # If the result is cached returns previous result
     if result is not None:
@@ -78,20 +91,28 @@ def transcription():
     # If no previous result
     # Create ressource
     try:
-        file_path = write_ressource(file_buffer, file_hash, AUDIO_FOLDER)
+        file_path = write_ressource(file_buffer, file_hash, AUDIO_FOLDER, extension)
     except Exception as e:
         logger.error("Failed to write ressource: {}".format(e))
         return "Server Error: Failed to write ressource", 500
 
     logger.debug("Create transcription task")
 
-    task_info = {"format": output_format,
-                 "spk_number" : spk_number, 
-                 "service_name": config.service_name, 
+    task_info = {"transcription_config": transcription_config.toJson(),
+                 "service_name": config.service_name,
                  "hash": file_hash, 
                  "keep_audio": config.keep_audio}
     
     task = transcription_task.apply_async(queue=config.service_name+'_requests', args=[task_info, file_path])
+
+    # Forced synchronous
+    if force_sync:
+        result = task.get()
+        state = task.status
+        if state == "SUCCESS":
+            return result["result"], 200
+        else:
+            return json.dumps({"state": "failed", "reason": str(task.result)}), 400
 
     return json.dumps({"jobid" : task.id}), 201
 
@@ -128,12 +149,12 @@ if __name__ == '__main__':
         logger.warning("Could not setup swagger: {}".format(str(e)))
 
     # Results database info
-    db_info = {"db_host" : config.mongo_uri, 
-               "db_port" : config.mongo_port, 
-               "service_name" : config.service_name, 
-               "db_name": "result_db"}
-    
-    db_client = DBClient(db_info)
+    #db_info = {"db_host" : config.mongo_uri, 
+    #           "db_port" : config.mongo_port, 
+    #           "service_name" : config.service_name, 
+    #           "db_name": "result_db"}
+    #
+    #db_client = DBClient(db_info)
 
     logger.info("Starting ingress")
     logger.debug(config)

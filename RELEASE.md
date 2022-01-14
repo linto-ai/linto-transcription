@@ -1,3 +1,16 @@
+# 1.0.2
+ - Added force_sync param for forced synchronous call
+ - Added vad processing to split large files into subfiles
+ - Added password variable for the service broker
+ - Changed API to the TranscriptionConfig format.
+ - Changed results return format
+ - Updated test_transcription.py
+ - Fixed wavefile not being converted when samplerate was wrong
+ - Removed flower
+ - Updated swagger to OpenAPI 3.0 and added new specifications. 
+ - TODO: MONGO temporary deactivated.
+ - TODO: Update README with new API specification
+
 # 1.0.1
  - Added wait-for-it for service dependencies
  - Added LICENSE

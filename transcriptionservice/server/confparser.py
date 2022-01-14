@@ -19,7 +19,7 @@ def createParser() -> argparse.ArgumentParser:
         '--swagger_url',
         type=str,
         help='Swagger interface url',
-        default='/api-doc')
+        default='/docs')
     parser.add_argument(
         '--swagger_prefix',
         type=str,

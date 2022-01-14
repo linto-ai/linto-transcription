@@ -1,7 +1,9 @@
 import re
 
+__all__ = ["clean_text", "speakers_format", "mergeTranscriptions"]
+
 def clean_text(text: str) -> str:
-    #Remove extra symbols from text
+    """ Remove extra symbols from text """
     text = re.sub(r"<unk>", "", text)  # remove <unk> symbol
     text = re.sub(r"#nonterm:[^ ]* ", "", text)  # remove entity's mark
     text = re.sub(r"' ", "'", text)  # remove space after quote '
@@ -12,7 +14,6 @@ def clean_text(text: str) -> str:
 def speakers_format(trans_data: dict, speakers_data: dict) -> dict:
     # Merge transcription and diarization into one json
     words = sorted(trans_data["words"], key=lambda x: x["start"])
-    print(speakers_data)
     segments = sorted(speakers_data["segments"], key=lambda x: x["seg_begin"])
     output_speakers = []
     output_lines = []
@@ -39,3 +40,16 @@ def speakers_format(trans_data: dict, speakers_data: dict) -> dict:
         output_speakers.append(current_speaker)
     return {"confidence-score": trans_data["confidence-score"], "speakers" : output_speakers, "text" : output_lines}
 
+def mergeTranscriptions(transcriptions: list) -> dict:
+    """ Merge transcription result into one transcription applying offsets """
+    output = {"text" : "", "words" : [], "confidence-score" : 0.0}
+    for transcription, offset in transcriptions:
+        output["text"] += transcription["text"] + " "
+        
+        for word in transcription["words"]:
+            offset_word = {"word" : word["word"], "start" : word["start"] + offset, "end" : word["end"] + offset, "conf" : word["conf"]}
+            output["words"].append(offset_word)
+        output["confidence-score"] += transcription["confidence-score"]
+    output["confidence-score"] /= len(transcription)
+
+    return output

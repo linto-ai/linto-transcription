@@ -3,3 +3,4 @@
 .vscode
 .envcontainer
 start_container.sh
+*.wav

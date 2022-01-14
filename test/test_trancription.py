@@ -1,20 +1,31 @@
 #!/usr/bin/env python3
+import argparse
+import os
 import requests
 import json
 import time
 
-INGRESS_HOST= "http://0.0.0.0:8000"
-INGRESS_API = "{}/transcribe".format(INGRESS_HOST)
-JOB_API = "{}/job/".format(INGRESS_HOST)
-FILE = "bonjour.wav" #"small_conv_2.wav"
-FORMAT= "raw"
-SPEAKERS=3
-NO_CACHE=True
+def main(args):
+    INGRESS_API = "{}/transcribe".format(args.transcription_server)
+    JOB_API = "{}/job/".format(args.transcription_server)
+    start_time = time.time()
+    transcription_config = {
+        "enableDiarization": args.diarization,
+        "enablePunctuation": args.punctuation,
+        "diarizationSpeakerCount": args.speakers, 
+    }
 
-if __name__ == "__main__":
+    return_format = "application/json" if args.format == "json" else "text/plain"
+
     try:
-        response = requests.post(INGRESS_API, headers={"accept":"application/json"}, data={"format" : FORMAT, "no_cache": NO_CACHE, "spk_number" : SPEAKERS}, files={'file' : open(FILE, 'rb').read()})
-    except:
+        response = requests.post(INGRESS_API, 
+                                 headers={"accept":return_format},
+                                 data={"config" : json.dumps(transcription_config),
+                                       "force_sync": args.force_sync,
+                                       "no_cache" : args.no_cache},
+                                 files={os.path.basename(args.audio_file) : open(args.audio_file, 'rb').read()})
+    except Exception as e:
+        print(str(e))
         print("Failed to establish connexion at {}".format(INGRESS_API))
         exit(-1)
     if response.status_code not in [200, 201]:
@@ -33,16 +44,19 @@ if __name__ == "__main__":
     print("Task ID: {}".format(task_id))
     while True:
         response = requests.get(JOB_API + task_id, headers={"accept":"application/json"})
-        if response.status_code not in [200, 201, 202]:
+        if response.status_code in [200, 400]:
             print("\nReturn code: {}".format(response.status_code))
-            print(response.text)
+            break
+        try:
+            content = json.loads(response.text)
+        except Exception:
+            print("\n" + response.text)
             exit(-1)
-        content = json.loads(response.text)
         state = content["state"]
         try:
             if state == "started":
                 progress = content["progress"]
-                print("Task in progress {}/{} ({})".format(progress["current"], progress["total"], progress["step"]), end="\r")
+                print("Task in progress {}/{} ({})\t\t\t".format(progress["current"], progress["total"], progress["step"]), end="\r")
             elif state == "pending":
                 print("Task is pending ...", end="\r")
             elif state == "done":
@@ -60,5 +74,32 @@ if __name__ == "__main__":
             print(content)
         time.sleep(1)
     
+    print("Process time = {:.2f}s".format(time.time() - start_time))
+    if args.to_file is not None:
+        try:
+            with open(args.to_file, "w") as f:
+                f.write(response.text)
+        except Exception as e:
+            print("Failed to write {}: {}".format(args.to_file, str(e)))
     print("\nFinal Result:")
+    print(type(response.text))
+    try:
+        result = "\n".join(json.loads(response.text)["text"])
+    except Exception as e:
+        print("Failed: {}".format(str(e)))
+        result = response.text
     print(result)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Feature Test')
+    parser.add_argument('transcription_server', help="Transcription service API", type=str)
+    parser.add_argument('audio_file', help="File to transcript", type=str)
+    parser.add_argument('--format', help="Outputformat: raw|json", type=str, default="raw")
+    parser.add_argument('--diarization', help="Do speaker diarization", action="store_true")
+    parser.add_argument('--punctuation', help="Do punctuation", action="store_true")
+    parser.add_argument('--speakers', help="Number of speakers", type=int, default=None)
+    parser.add_argument('--no_cache', help="Do not use cached result", action="store_true")
+    parser.add_argument('--force_sync', help="Force synchronous request", action="store_true")
+    parser.add_argument('--to_file', help="Write result in a file", default=None)
+    args = parser.parse_args()
+    main(args)
