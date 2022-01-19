@@ -23,9 +23,13 @@ class Config:
         return config_dict
 
     def __eq__(self, other):
+        """ Compares 2 Config. Returns true if all fields are the same """
         if isinstance(other, Config):
             for key in self._keys_default.keys():
-                if self.__getattribute__(key) != other.__getattribute__(key):
+                try:
+                    if self.__getattribute__(key) != other.__getattribute__(key):
+                        return False
+                except:
                     return False
             return True
         return False
@@ -71,9 +75,7 @@ class TranscriptionConfig(Config):
       "enablePunctuation": boolean (false),
       "enableDiarization": boolean (false),
       "diarizationConfig": object DiarizationConfig (null),
-      "diarizationConfig": object SubtitleConfig (null) 
-      "returnPart" : boolean (false)
-      "returnJSON: boolean (false)
+      "subTitleConfig": object SubtitleConfig (null) 
     }
     ```
     """
@@ -81,17 +83,10 @@ class TranscriptionConfig(Config):
                      "enablePunctuation" : False, 
                      "enableDiarization" : False,
                      "diarizationConfig" : DiarizationConfig(),
-                     "subtitleConfig": SubtitleConfig(),
-                     "returnPart": False,}
+                     "subtitleConfig": SubtitleConfig()}
     
-    def __init__(self, config: Union[str, dict] = {}, returnJSON: bool = False):
+    def __init__(self, config: Union[str, dict] = {}):
         super().__init__(config)
-        self.returnJSON = returnJSON
-    
-    def toJson(self) -> dict:
-        config_dict = super().toJson()
-        config_dict["return_json"] = self.returnJSON
-        return config_dict
 
     def __eq__(self, other):
         if isinstance(other, TranscriptionConfig):

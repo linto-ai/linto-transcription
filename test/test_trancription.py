@@ -32,18 +32,22 @@ def main(args):
         print("Failed to join API at {} ({})".format(INGRESS_API, response.status_code))
         exit(-1)
 
-    content = json.loads(response.text)
+    
     # If response if already available (200)
     if response.status_code == 200:
         print("Response cached:")
-        print(content)
+        try:
+            result = json.loads(response.text)
+        except:
+            result = response.text
+        print(result)
         exit(1)
     
-    task_id = content["jobid"]
+    task_id = json.loads(response.text)["jobid"] if return_format == "application/json" else response.text 
     print(response)
     print("Task ID: {}".format(task_id))
     while True:
-        response = requests.get(JOB_API + task_id, headers={"accept":"application/json"})
+        response = requests.get(JOB_API + task_id, headers={"accept":return_format})
         if response.status_code in [200, 400]:
             print("\nReturn code: {}".format(response.status_code))
             break
@@ -84,9 +88,8 @@ def main(args):
     print("\nFinal Result:")
     print(type(response.text))
     try:
-        result = "\n".join(json.loads(response.text)["text"])
+        result = json.loads(response.text)["transcription_result"]
     except Exception as e:
-        print("Failed: {}".format(str(e)))
         result = response.text
     print(result)
 

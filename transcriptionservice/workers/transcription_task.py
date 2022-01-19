@@ -137,9 +137,9 @@ def transcription_task(self, task_info: dict, file_path: str):
     # Write result in database
     self.update_state(state="STARTED", meta={"current": current_step, "total": total_step, "step": "Cleaning"})
     try:
-        db_client.write_result(task_info["hash"], output_format, formated_result)
+        db_client.write_result(task_info["hash"], config, transcription_result)
     except Exception as e:
-        print("Failed to write result in database")
+        print("Failed to write result in database: {} ".format(e))
     
     # Free ressource
     if not task_info["keep_audio"]:

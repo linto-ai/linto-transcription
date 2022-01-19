@@ -68,12 +68,13 @@ def transcription():
     logger.debug(request.headers.get('accept'))
 
     # Request flags
-    no_cache = True #request.form.get("no_cache", False)
-    force_sync = request.form.get("force_sync", False)
+    no_cache = request.form.get("no_cache", False) in [0, True, "true"]
+    force_sync = request.form.get("force_sync", False) in [0, True, "true"]
+    logger.debug(f"force_sync = {force_sync}")
 
     # Parse transcription config
-    transcription_config = TranscriptionConfig(request.form.get("transcriptionConfig", {}), json_format)
-    logger.debug(request.form.get("transcriptionConfig", {}))
+    transcription_config = TranscriptionConfig(request.form.get("transcriptionConfig", {}))
+    logger.debug(transcription_config)
 
     # Check DATABASE for results
     logger.debug("is nocache: {}".format(no_cache))
@@ -81,13 +82,13 @@ def transcription():
     if not no_cache:
         logger.debug("Check for cached result")
         result = db_client.check_for_result(file_hash,
-                                            output_format)
+                                            transcription_config)
     
     requestlog(logger, request.remote_addr, transcription_config, file_hash, result is not None)
 
     # If the result is cached returns previous result
     if result is not None:
-        return json.dumps(result), 200
+        return result if json_format else result["transcription_result"], 200
 
     # If no previous result
     # Create ressource
@@ -150,17 +151,18 @@ if __name__ == '__main__':
         logger.warning("Could not setup swagger: {}".format(str(e)))
 
     # Results database info
-    #db_info = {"db_host" : config.mongo_uri, 
-    #           "db_port" : config.mongo_port, 
-    #           "service_name" : config.service_name, 
-    #           "db_name": "result_db"}
-    #
-    #db_client = DBClient(db_info)
+    db_info = {"db_host" : config.mongo_uri, 
+               "db_port" : config.mongo_port, 
+               "service_name" : config.service_name, 
+               "db_name": "result_db"}
+    
+    db_client = DBClient(db_info)
 
     logger.info("Starting ingress")
     logger.debug(config)
     serving = GunicornServing(app, {'bind': '{}:{}'.format('0.0.0.0', 80),
-                                    'workers': config.gunicorn_workers,})
+                                    'workers': config.gunicorn_workers,
+                                    'timeout' : 3600})
 
     try:
         serving.run()

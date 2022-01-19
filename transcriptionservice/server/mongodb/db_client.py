@@ -1,5 +1,5 @@
 from pymongo import MongoClient
-from transcriptionservice.server.utils import TranscriptionConfig
+from transcriptionservice.server.utils import TranscriptionConfig, TranscriptionResult
 
 class DBClient:
     """ DBClient setups and maintains a connexion to a MongoDB database """
@@ -14,7 +14,7 @@ class DBClient:
         """
         self.isset = False
         if self.check_params(db_info):
-            self.client = MongoClient(db_info["db_host"], port=db_info["db_port"])
+            self.client = MongoClient(db_info["db_host"], port=db_info["db_port"], connect=False)
             self.collection = self.client[db_info["db_name"]][db_info["service_name"]]
             self.isset = True
 
@@ -34,16 +34,16 @@ class DBClient:
         entry = self.collection.find_one({"_id" : file_hash})
         if entry is None:
             return None
-        stored_config = TranscriptionConfig(entry["config"])
-        return entry["result"] if stored_config == config else None
+        stored_config = entry["config"]
+        return entry["result"] if stored_config == config.toJson() else None
         
-    def write_result(self, hash: str, config: TranscriptionConfig, result):
+    def write_result(self, file_hash: str, config: TranscriptionConfig, result: TranscriptionResult):
         """ Write result in db """
         if not self.isset:
             raise Exception("DB Client is not set.")
-        self.collection.find_one_and_update({"_id": hash},
-                                            {"$set": {"config": config.jsonConfig(),
-                                                      "result" : result}}, upsert=True)
+        self.collection.find_one_and_update({"_id": file_hash},
+                                            {"$set": {"config": config.toJson(),
+                                                      "result" : result.final_result()}}, upsert=True)
 
     def close(self):
         """ Close client connexion """

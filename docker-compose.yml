@@ -11,9 +11,6 @@ services:
     ports:
       - target: 80
         published: 8000
-      - target: 5555
-        published: 5555
     expose: 
       - "80"
-      - "5555"
   
