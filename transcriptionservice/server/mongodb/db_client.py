@@ -1,5 +1,5 @@
 from pymongo import MongoClient
-from transcriptionservice.server.utils import TranscriptionConfig, TranscriptionResult
+from transcriptionservice.workers.utils import TranscriptionConfig, TranscriptionResult
 
 class DBClient:
     """ DBClient setups and maintains a connexion to a MongoDB database """

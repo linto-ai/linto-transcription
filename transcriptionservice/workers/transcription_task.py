@@ -7,11 +7,10 @@ import json
 from pymongo import MongoClient
 
 from transcriptionservice.workers.audio import transcoding, splitFile
-from transcriptionservice.workers.formating import clean_text, speakers_format, mergeTranscriptions
 from transcriptionservice.workers.celeryapp import celery
 from transcriptionservice.server.mongodb.mongotutils import check_for_result
 from transcriptionservice.server.mongodb.db_client import DBClient
-from transcriptionservice.server.utils import TranscriptionConfig, TranscriptionResult
+from transcriptionservice.workers.utils import TranscriptionConfig, TranscriptionResult
 
 __all__ = ["transcription_task"]
 
@@ -40,6 +39,12 @@ def transcription_task(self, task_info: dict, file_path: str):
     print(task_info)
 
     config = TranscriptionConfig(task_info["transcription_config"])
+
+    # Configuration check
+    ## Subtitle requires diarization
+    if config.subtitleConfig["enableSubtitle"]:
+        config.diarizationConfig["enableDiarization"] = True
+
     # Setup flags
     do_diarization = config.diarizationConfig["enableDiarization"]
     do_punctuation = config.enablePunctuation

@@ -53,7 +53,7 @@ class SpeechSegment:
             "end": self.end,
             "duration": self.duration,
             "raw_segment": self.raw_segment,
-            "segment" : self.processed_segment,
+            "segment" : self.processed_segment if self.processed_segment is not None else self.raw_segment,
             "words": [w.json for w in self.words]
         }
 

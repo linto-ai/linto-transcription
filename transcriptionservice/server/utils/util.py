@@ -2,7 +2,7 @@ import os
 import hashlib
 import subprocess
 
-from transcriptionservice.server.utils.transcriptionconfig import TranscriptionConfig
+from transcriptionservice.workers.utils import TranscriptionConfig
 
 __all__ = ["fileHash", "requestlog"]
 

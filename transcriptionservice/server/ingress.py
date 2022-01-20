@@ -11,7 +11,8 @@ from transcriptionservice.server.serving import GunicornServing
 from transcriptionservice.workers.transcription_task import transcription_task
 from transcriptionservice.server.confparser import createParser
 from transcriptionservice.server.swagger import setupSwaggerUI
-from transcriptionservice.server.utils import fileHash, requestlog, TranscriptionConfig, TranscriptionResult
+from transcriptionservice.server.utils import fileHash, requestlog
+from transcriptionservice.workers.utils import TranscriptionConfig, TranscriptionResult
 from transcriptionservice.server.utils.ressources import write_ressource
 from transcriptionservice.server.mongodb.db_client import DBClient
 
