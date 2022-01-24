@@ -39,6 +39,14 @@ paths:
               schema:
                 type: string
                 default: This is a transcription
+            text/vtt:
+              schema:
+                type: string
+                default: Return the transcription as VTT subtitles.
+            text/srt:
+              schema:
+                type: string
+                default: Return the transcription as SRT subtitles.
         201:
           description: Successfully created transcription job
           content:
@@ -81,6 +89,14 @@ paths:
               schema:
                 type: string
                 default: This is a transcription
+            text/vtt:
+              schema:
+                type: string
+                default: Return the transcription as VTT subtitles.
+            text/srt:
+              schema:
+                type: string
+                default: Return the transcription as SRT subtitles.
         202:
           description: Task is still processing
           content:
@@ -92,6 +108,10 @@ paths:
                 $ref: '#/components/schemas/jobInProgress'
         400:
           description: Task has failed or do not exist
+          content: {}
+
+        404:
+          description: JobId hasn't been found
           content: {}
 
 components:
@@ -108,9 +128,7 @@ components:
         diarizationConfig:
           type: object
           $ref: '#/components/schemas/diarizationConfig'
-        subtitleConfig:
-          type: object
-          $ref: '#/components/schemas/subtitleConfig'
+
     diarizationConfig:
       type: object
       properties:
@@ -123,19 +141,6 @@ components:
         maxNumberOfSpeaker:
           type: integer
           default: null
-    subtitleConfig:
-      type: object
-      properties:
-        enableSubtitle:
-          type: boolean
-          default: false
-        subtitleFormat:
-          type: string
-          enum: ["VTT", "SRT"]
-          default: "VTT"
-        maxCharacterPerLine:
-          type: integer
-          default: 25
     jobID:
       type: object
       properties:
@@ -149,6 +154,12 @@ components:
           enum: [started, pending]
         progress:
           type: object
+    jobUnknown:
+      type: object
+      properties:
+        state:
+          type: string
+          default: "unknown"
     transcriptionResult:
       type: object
       properties:

@@ -40,11 +40,6 @@ def transcription_task(self, task_info: dict, file_path: str):
 
     config = TranscriptionConfig(task_info["transcription_config"])
 
-    # Configuration check
-    ## Subtitle requires diarization
-    if config.subtitleConfig["enableSubtitle"]:
-        config.diarizationConfig["enableDiarization"] = True
-
     # Setup flags
     do_diarization = config.diarizationConfig["enableDiarization"]
     do_punctuation = config.enablePunctuation
@@ -84,7 +79,7 @@ def transcription_task(self, task_info: dict, file_path: str):
 
     # Diarization (In parallel)
     if do_diarization:
-        diarJobId = celery.send_task(name="diarization_task", 
+        diarJobId = celery.send_task(name="diarization_task",
                                      queue='diarization', 
                                      args=[file_name, 
                                            config.diarizationConfig["numberOfSpeaker"], 
@@ -114,7 +109,7 @@ def transcription_task(self, task_info: dict, file_path: str):
     current_step+=1
 
     # Transcription result
-    transcription_result = TranscriptionResult(transcriptions, config)
+    transcription_result = TranscriptionResult(transcriptions)
 
     # Diarization result
     if do_diarization:
@@ -142,7 +137,7 @@ def transcription_task(self, task_info: dict, file_path: str):
     # Write result in database
     self.update_state(state="STARTED", meta={"current": current_step, "total": total_step, "step": "Cleaning"})
     try:
-        db_client.write_result(task_info["hash"], config, transcription_result)
+        db_client.write_result(task_info["hash"], self.request.id, config, transcription_result)
     except Exception as e:
         print("Failed to write result in database: {} ".format(e))
     

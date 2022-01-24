@@ -36,13 +36,23 @@ class DBClient:
             return None
         stored_config = entry["config"]
         return entry["result"] if stored_config == config.toJson() else None
+    
+    def check_for_jobid(self, job_id: str):
+        if not self.isset:
+            raise Exception("DB Client is not set.")
+        entry = self.collection.find_one({"jobid": job_id})
+        if entry is None:
+            return None
+        return entry["result"]
         
-    def write_result(self, file_hash: str, config: TranscriptionConfig, result: TranscriptionResult):
+        
+    def write_result(self, file_hash: str, job_id: str, config: TranscriptionConfig, result: TranscriptionResult):
         """ Write result in db """
         if not self.isset:
             raise Exception("DB Client is not set.")
         self.collection.find_one_and_update({"_id": file_hash},
-                                            {"$set": {"config": config.toJson(),
+                                            {"$set": {"jobid": job_id,
+                                                      "config": config.toJson(),
                                                       "result" : result.final_result()}}, upsert=True)
 
     def close(self):

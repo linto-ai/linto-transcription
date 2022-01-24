@@ -5,18 +5,20 @@ import argparse
 
 import celery
 from celery.result import AsyncResult
+from celery.result import states as task_states
 from flask import Flask, request, abort, Response, json
 
 from transcriptionservice.server.serving import GunicornServing
 from transcriptionservice.workers.transcription_task import transcription_task
 from transcriptionservice.server.confparser import createParser
 from transcriptionservice.server.swagger import setupSwaggerUI
-from transcriptionservice.server.utils import fileHash, requestlog
+from transcriptionservice.server.utils import fileHash, requestlog, formatResult
 from transcriptionservice.workers.utils import TranscriptionConfig, TranscriptionResult
 from transcriptionservice.server.utils.ressources import write_ressource
 from transcriptionservice.server.mongodb.db_client import DBClient
 
 AUDIO_FOLDER = "/opt/audio"
+SUPPORTED_HEADER_FORMAT = ["text/plain", "application/json", "text/vtt", "text/srt"]
 
 app = Flask("__services_manager__")
 
@@ -30,19 +32,28 @@ def healthcheck():
 
 @app.route('/job/<jobid>', methods=["GET"])
 def jobstatus(jobid):
-    json_format = request.headers.get('accept') == 'application/json'
-    if not json_format and request.headers.get('accept') != 'text/plain':
-        return f"Accept format {request.headers.get('accept')} not valid (Must be application/json or text/plain)", 400
+    # Header check
+    expected_format =request.headers.get('accept')
+    if not expected_format in SUPPORTED_HEADER_FORMAT:
+        return "Accept format {} not supported. Supported MIME types are :{}".format(expected_format, " ".join(SUPPORTED_HEADER_FORMAT)), 400
+
     task = AsyncResult(jobid)
     state = task.status
-    if state == "STARTED":
+
+    if state == task_states.STARTED:
         return json.dumps({"state": "started", "progress" : task.info}), 202
-    elif state == "SUCCESS":
+    elif state == task_states.SUCCESS:
         result = task.get()
-        return result if json_format else result["transcription_result"], 200
-    elif state == "PENDING":
-        return json.dumps({"state": "pending",}), 202
-    elif state == "FAILURE":
+        return formatResult(result, expected_format), 200
+
+    elif state == task_states.PENDING:
+        # If state is pending, check for result in DB
+        result = db_client.check_for_jobid(jobid)
+        if result:
+            return formatResult(result, expected_format), 200
+        return json.dumps({"state": "unknown",}), 404
+
+    elif state == task_states.FAILURE:
         return json.dumps({"state": "failed", "reason": str(task.result)}), 500
     else:
         return "Task returned an unknown state", 400
@@ -61,24 +72,24 @@ def transcription():
     extension = request.files[file_key].filename.split(".")[-1]
     file_hash = fileHash(file_buffer)
 
-    # Parse Transcription config
-    ## Return format
-    json_format = request.headers.get('accept') == 'application/json'
-    if not json_format and request.headers.get('accept') != 'text/plain':
-        return f"Accept format {request.headers.get('accept')} not valid (Must be application/json or text/plain)", 400
+    # Header check
+    expected_format = request.headers.get('accept')
+    if not expected_format in SUPPORTED_HEADER_FORMAT:
+        return "Accept format {} not supported. Supported MIME types are :{}".format(expected_format, " ".join(SUPPORTED_HEADER_FORMAT)), 400
     logger.debug(request.headers.get('accept'))
 
     # Request flags
-    no_cache = request.form.get("no_cache", False) in [0, True, "true"]
-    force_sync = request.form.get("force_sync", False) in [0, True, "true"]
-    logger.debug(f"force_sync = {force_sync}")
+    no_cache = request.form.get("no_cache", False) in [1, True, "true"]
+    force_sync = request.form.get("force_sync", False) in [1, True, "true"]
+    logger.debug(f"force_sync: {force_sync}")
+    logger.debug(f"is nocache: {no_cache}")
 
     # Parse transcription config
     transcription_config = TranscriptionConfig(request.form.get("transcriptionConfig", {}))
     logger.debug(transcription_config)
 
     # Check DATABASE for results
-    logger.debug("is nocache: {}".format(no_cache))
+    
     result = None
     if not no_cache:
         logger.debug("Check for cached result")
@@ -89,7 +100,7 @@ def transcription():
 
     # If the result is cached returns previous result
     if result is not None:
-        return result if json_format else result["transcription_result"], 200
+        return formatResult(result, expected_format), 200
 
     # If no previous result
     # Create ressource
@@ -113,11 +124,11 @@ def transcription():
         result = task.get()
         state = task.status
         if state == "SUCCESS":
-            return result if json_format else result["transcription_result"], 200
+            return formatResult(result, expected_format), 200
         else:
             return json.dumps({"state": "failed", "reason": str(task.result)}), 400
 
-    return (json.dumps({"jobid" : task.id}) if json_format else task.id), 201
+    return (json.dumps({"jobid" : task.id}) if expected_format == "application/json" else task.id), 201
 
 @app.route('/revoke/<jobid>', methods=["GET"])
 def revoke(jobid):

@@ -1,8 +1,13 @@
 # 1.0.3
- - Changed: segment in result will be equals to raw_segment in absence of postprocessing
+ - Added: Subtitling return format for VTT and SRT 
+ - Added: Accept headers for subtitle formats
+ - Added: jobid in result database
+ - Added: fetch result in db using jobid
+ - Changed: segment in TranscriptionResult will be equals to raw_segment in absence of postprocessing
  - Moved: transcription related file to workers/utils
+ - Updated: README
  - Removed: no longer used formating.py file
-
+ - Removed: SubtitleConfig in TranscriptionConfig
 
 # 1.0.2
  - Added force_sync param for forced synchronous call
