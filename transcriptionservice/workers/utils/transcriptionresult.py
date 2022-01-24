@@ -2,8 +2,6 @@ from dataclasses import dataclass, field
 from typing import Union, List, Tuple, Dict
 import json
 
-from .transcriptionconfig import TranscriptionConfig
-
 @dataclass
 class Word:
     word: str
@@ -60,14 +58,13 @@ class SpeechSegment:
 class TranscriptionResult:
     """ Transcription result manages transcription results, post-processing and formating for transcription results."""
     
-    def __init__(self, transcriptions: List[Tuple[dict, float]], config: TranscriptionConfig):
+    def __init__(self, transcriptions: List[Tuple[dict, float]]):
         """ Initialisation accepts list of tuple (transcription, time_offset) """
         self.transcription_confidence = 0.0
         self.words = []
         self.segments = []
-
-        self.config = config
-        self._mergeTranscription(transcriptions)
+        if transcriptions:
+            self._mergeTranscription(transcriptions)
 
     def _mergeTranscription(self, transcriptions: List[Tuple[dict, float]]):
         """ Merges transcription results applying offsets """
@@ -121,6 +118,16 @@ class TranscriptionResult:
     @property
     def raw_transcription(self) -> str:
         return " ".join([w.word for w in self.words]).strip()
+
+    @classmethod
+    def fromDict(cls, resultDict: dict):
+        result = TranscriptionResult(None)
+        result.transcription_confidence = resultDict["confidence"]
+        for segment in resultDict["segments"]:
+            seg = SpeechSegment(segment["spk_id"], [Word(**w) for w in segment["words"]])
+            seg.processed_segment = segment["segment"]
+            result.segments.append(seg)
+        return result
 
     def final_result(self) -> dict:
         result = dict()

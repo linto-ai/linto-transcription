@@ -54,17 +54,6 @@ class DiarizationConfig(Config):
     def __init__(self, config: Union[str, dict] = {}):
         super().__init__(config)
 
-class SubtitleConfig(Config):
-    """ SubtitleConfig parses and holds subtitle related parameters.
-
-    """
-    _keys_default = {"enableSubtitle" : False,
-                     "subtitleFormat": "VTT",
-                     "maxCharacterPerLine": 25,
-                     "returnAsFile": False}
-    def __init__(self, config: Union[str, dict] = {}):
-        super().__init__(config)
-
 
 class TranscriptionConfig(Config):
     """ TranscriptionConfig parses and holds transcription request configuration.
@@ -74,16 +63,14 @@ class TranscriptionConfig(Config):
       "transcribePerChannel": boolean (false),
       "enablePunctuation": boolean (false),
       "enableDiarization": boolean (false),
-      "diarizationConfig": object DiarizationConfig (null),
-      "subTitleConfig": object SubtitleConfig (null) 
+      "diarizationConfig": object DiarizationConfig (null), 
     }
     ```
     """
     _keys_default = {"transcribePerChannel" : False, 
                      "enablePunctuation" : False, 
                      "enableDiarization" : False,
-                     "diarizationConfig" : DiarizationConfig(),
-                     "subtitleConfig": SubtitleConfig()}
+                     "diarizationConfig" : DiarizationConfig()}
     
     def __init__(self, config: Union[str, dict] = {}):
         super().__init__(config)

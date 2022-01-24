@@ -83,7 +83,7 @@ The /transcribe route allows POST request containing an audio file.
 
 The route accepts multipart/form-data requests.
 
-Response format can be application/json or text/plain specified in the accept field of the header.
+Response format can be application/json, text/plain, text/vtt or text/srt specified in the accept field of the header.
 
 |Form Parameter| Description | Required |
 |:-|:-|:-|
@@ -115,11 +115,6 @@ The transcriptionConfig object describe the transcription parameters and flags o
     "enableDiarization": false, #Enables speaker diarization
     "numberOfSpeaker": null, #If set, forces number of speaker
     "maxNumberOfSpeaker": null #If set and and numberOfSpeaker is not, limit the maximum number of speaker.
-  },
-  "subtitleConfig": {
-    "enableSubtitle": false, #If set, the transcription returns a subtitle file
-    "subtitleFormat": "VTT", #Subtitle return format [VTT | SRT]
-    "maxCharacterPerLine": 0 #Max number of character before starting a new line
   }
 }
 ```
@@ -127,9 +122,13 @@ The transcriptionConfig object describe the transcription parameters and flags o
 ### /job/{jobid}
 
 The /job/{jobid} GET route allow you to get the state or the result of the given job.
-* If the job is **started**, it returns a code ```202``` with informations on the progress.
-* If the job is **finished**, it returns a code ```200``` with the [transcription result](#transcription-result).
-* If the jobid is **unknown or the task failed** returns a code ```400```.
+
+Response format can be application/json, text/plain, text/vtt or text/srt specified in the accept field of the header.
+
+* If the job state is **started**, it returns a code ```202``` with informations on the progress.
+* If the job state is **finished**, it returns a code ```200``` with the [transcription result](#transcription-result).
+* If the job state is **unknown** returns a code ```404```.
+* If the job state is **failed** returns a code ```400```.
 
 #### Transcription result
 The transcription result format depends on the accept field of the job request.
