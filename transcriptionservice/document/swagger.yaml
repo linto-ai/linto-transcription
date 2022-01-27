@@ -79,7 +79,7 @@ paths:
             type: string
 
       responses:
-        200:
+        201:
           description: "Job successfully finished. Returns a result ID"
           content:
             application/json:

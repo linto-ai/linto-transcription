@@ -44,9 +44,9 @@ def jobstatus(jobid):
         return json.dumps({"state": "started", "progress" : task.info}), 202
     elif state == task_states.SUCCESS:
         result_id = task.get()
-        return json.dumps({"state": "done", "result_id": result_id}), 200
+        return json.dumps({"state": "done", "result_id": result_id}), 201
     elif state == task_states.PENDING:
-        return json.dumps({"state": "unknown",}), 404
+        return json.dumps({"state": "pending",}), 404
     elif state == task_states.FAILURE:
         return json.dumps({"state": "failed", "reason": str(task.result)}), 500
     else:
