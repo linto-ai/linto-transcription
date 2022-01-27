@@ -67,7 +67,7 @@ docker-compose up .
 |LANGUAGE| Language code as a BCP-47 code | fr_FR |
 |RESSOURCE_FOLDER|Shared folder (host)|~/linto_shared_mount/|
 |KEEP_AUDIO|Either audio files are kept after request|1 (true) / 0 (false)|
-|GUNICORN_WORKERS|Gunicorn serving worker (default 4)|4|
+|CONCURRENCY|Number of workers (default 10)|10|
 |SERVICES_BROKER|Message broker address|redis://broker_address:6379|
 |BROKER_PASS|Broker Password| Password|
 |MONGO_HOST|MongoDB results url|my-mongo-service|

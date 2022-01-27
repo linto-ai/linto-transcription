@@ -33,9 +33,9 @@ def healthcheck():
 @app.route('/job/<jobid>', methods=["GET"])
 def jobstatus(jobid):
     # Header check
-    expected_format =request.headers.get('accept')
-    if not expected_format in SUPPORTED_HEADER_FORMAT:
-        return "Accept format {} not supported. Supported MIME types are :{}".format(expected_format, " ".join(SUPPORTED_HEADER_FORMAT)), 400
+    expected_format = request.headers.get('accept')
+    if expected_format != "application/json":
+        return "Accept format {} not supported. Supported MIME types are :{}".format(expected_format, "application/json"), 400
 
     task = AsyncResult(jobid)
     state = task.status
@@ -43,20 +43,26 @@ def jobstatus(jobid):
     if state == task_states.STARTED:
         return json.dumps({"state": "started", "progress" : task.info}), 202
     elif state == task_states.SUCCESS:
-        result = task.get()
-        return formatResult(result, expected_format), 200
-
+        result_id = task.get()
+        return json.dumps({"state": "done", "result_id": result_id}), 200
     elif state == task_states.PENDING:
-        # If state is pending, check for result in DB
-        result = db_client.check_for_jobid(jobid)
-        if result:
-            return formatResult(result, expected_format), 200
         return json.dumps({"state": "unknown",}), 404
-
     elif state == task_states.FAILURE:
         return json.dumps({"state": "failed", "reason": str(task.result)}), 500
     else:
         return "Task returned an unknown state", 400
+
+@app.route('/results/<result_id>', methods=["GET"])
+def results(result_id):
+    expected_format =request.headers.get('accept')
+    if not expected_format in SUPPORTED_HEADER_FORMAT:
+        return "Accept format {} not supported. Supported MIME types are :{}".format(expected_format, " ".join(SUPPORTED_HEADER_FORMAT)), 400
+    
+    result = db_client.fetch_result(result_id)
+    if result is None:
+        return f"No result associated with id {result_id}", 404
+    return formatResult(result, expected_format), 200
+
 
 @app.route('/transcribe', methods=["POST"])
 def transcription():
@@ -79,28 +85,14 @@ def transcription():
     logger.debug(request.headers.get('accept'))
 
     # Request flags
-    no_cache = request.form.get("no_cache", False) in [1, True, "true"]
     force_sync = request.form.get("force_sync", False) in [1, True, "true"]
     logger.debug(f"force_sync: {force_sync}")
-    logger.debug(f"is nocache: {no_cache}")
 
     # Parse transcription config
     transcription_config = TranscriptionConfig(request.form.get("transcriptionConfig", {}))
     logger.debug(transcription_config)
 
-    # Check DATABASE for results
-    
-    result = None
-    if not no_cache:
-        logger.debug("Check for cached result")
-        result = db_client.check_for_result(file_hash,
-                                            transcription_config)
-    
-    requestlog(logger, request.remote_addr, transcription_config, file_hash, result is not None)
-
-    # If the result is cached returns previous result
-    if result is not None:
-        return formatResult(result, expected_format), 200
+    requestlog(logger, request.remote_addr, transcription_config, file_hash, False)
 
     # If no previous result
     # Create ressource
@@ -121,9 +113,10 @@ def transcription():
 
     # Forced synchronous
     if force_sync:
-        result = task.get()
+        result_id = task.get()
         state = task.status
         if state == "SUCCESS":
+            result = db_client.fetch_result(result_id)
             return formatResult(result, expected_format), 200
         else:
             return json.dumps({"state": "failed", "reason": str(task.result)}), 400
@@ -166,14 +159,14 @@ if __name__ == '__main__':
     db_info = {"db_host" : config.mongo_uri, 
                "db_port" : config.mongo_port, 
                "service_name" : config.service_name, 
-               "db_name": "result_db"}
+               "db_name": "transcriptiondb"}
     
     db_client = DBClient(db_info)
 
     logger.info("Starting ingress")
     logger.debug(config)
     serving = GunicornServing(app, {'bind': '{}:{}'.format('0.0.0.0', 80),
-                                    'workers': config.gunicorn_workers,
+                                    'workers': config.concurrency + 1,
                                     'timeout' : 3600})
 
     try:

@@ -19,7 +19,5 @@ celery.conf.update(
 celery.conf.update(
     {'task_routes': {
         'transcription_task': {'queue': '{}_requests'.format(service_name)},
-        'punctuation_task' : {'queue': 'punctuation'},
-        'diarization_task' : {'queue' : 'diarization'}
     }}
 )

@@ -1,3 +1,14 @@
+# 1.1.0
+ - Added: A new route has been added /results/{result_id} allows to fetch transcription result and to specify the result format. 
+ - Changed: MongoDB server availibility timeout check greatly reduced to prevent hanging when mongo is unavailable.
+ - Changed: The /job/{job_id} route now returns a ressource_id to be fetch on the /results/{result_id} when the task is completed.
+ - Changed: Diarization is ignored when number of speaker is 1
+ - Changed: GUNICORN_WORKER replaced with CONCURRENCY.
+ - Fixed: Transcription worker concurrency is now set using CONCURRENCY env variable.
+ - Updated: README.
+ - Updated: Swagger's document.
+ - Removed: no_cache request option has been removed.
+
 # 1.0.3
  - Added: Subtitling return format for VTT and SRT 
  - Added: Accept headers for subtitle formats

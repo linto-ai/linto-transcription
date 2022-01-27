@@ -23,8 +23,6 @@ paths:
                 transcriptionConfig:
                   type: object
                   $ref: '#/components/schemas/transcriptionConfig'
-                no_cache:
-                  type: boolean
                 force_sync:
                   type: boolean
                   default: false
@@ -70,6 +68,8 @@ paths:
         
   /job/{jobid}:
     get:
+      tags:
+        - Job status
       parameters:
         - name: "jobid"
           in: path
@@ -80,7 +80,46 @@ paths:
 
       responses:
         200:
-          description: "Job successfully finished"
+          description: "Job successfully finished. Returns a result ID"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/jobFinished'
+        202:
+          description: Task is still processing. Return job progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/jobInProgress'
+        400:
+          description: Task has failed
+          content: 
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/jobFailed'
+
+
+        404:
+          description: JobId hasn't been found
+          content: 
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/jobUnknown'
+  
+  /results/{result_id}:
+    get:
+      tags:
+        - Transcription result
+      parameters:
+        - name: result_id
+          in: path
+          required: true
+          description: Result id
+          schema:
+            type: string
+      responses:
+        200:
+          description: Ressource available
           content:
             application/json:
               schema:
@@ -97,22 +136,8 @@ paths:
               schema:
                 type: string
                 default: Return the transcription as SRT subtitles.
-        202:
-          description: Task is still processing
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/jobInProgress'
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/jobInProgress'
-        400:
-          description: Task has failed or do not exist
-          content: {}
-
         404:
-          description: JobId hasn't been found
-          content: {}
+          description: No ressource found for this id
 
 components:
   schemas:
@@ -154,12 +179,30 @@ components:
           enum: [started, pending]
         progress:
           type: object
+    jobFinished:
+      type: object
+      properties:
+        state:
+          type: string
+          default: finished
+        ressource_id:
+          type: string
+          default: "ressource_id to use on the /results/{ressource_id} route"
     jobUnknown:
       type: object
       properties:
         state:
           type: string
           default: "unknown"
+    jobFailed:
+      type: object
+      properties:
+        state:
+          type: string
+          default: "failed"
+        reason:
+          type: string
+          default: "The server encountered an error"
     transcriptionResult:
       type: object
       properties:

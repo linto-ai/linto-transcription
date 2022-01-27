@@ -3,9 +3,7 @@ SERVICE_NAME= # STT service name, use to connect to the proper redis channel and
 LANGUAGE= # Language setting
 RESSOURCE_FOLDER= # (Shared) Folder where ressources are written
 KEEP_AUDIO=0 # Wether or not the audio file is kept after the request is answered
-
-#GUNICORN SETTINGS
-GUNICORN_WORKERS=4 # Number of Gunicorn worker
+CONCURRENCY=10 # Number of Gunicorn worker
 
 #CELERY CONFIG
 SERVICES_BROKER= redis:// # Service broker uri

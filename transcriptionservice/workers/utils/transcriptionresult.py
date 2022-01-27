@@ -77,6 +77,12 @@ class TranscriptionResult:
         self.transcription_confidence /= len(transcriptions)
         self.words.sort(key=lambda x: x.start)
         
+    def setTranscription(self, words: List[dict]):
+        for w in words:
+            self.words.append(Word(**w))
+        self.transcription_confidence = sum([w.conf for w in self.words]) / len(self.words)
+
+
     def setDiarizationResult(self, diarizationResult: Union[str, dict]):
         """ Convert word data into speech segments using diarization data"""
         diarization_data = json.loads(diarizationResult) if isinstance(diarizationResult, str) else diarizationResult

@@ -9,10 +9,10 @@ def createParser() -> argparse.ArgumentParser:
 
     # GUNICORN
     parser.add_argument(
-        '--gunicorn_workers',
+        '--concurrency',
         type=int,
-        help='Serving workers (default=4)',
-        default=os.environ.get("GUNICORN_WORKERS", 4))
+        help='Serving workers (default=10)',
+        default=os.environ.get("CONCURRENCY", 10))
 
     # SWAGGER
     parser.add_argument(

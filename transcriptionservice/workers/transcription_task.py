@@ -8,7 +8,6 @@ from pymongo import MongoClient
 
 from transcriptionservice.workers.audio import transcoding, splitFile
 from transcriptionservice.workers.celeryapp import celery
-from transcriptionservice.server.mongodb.mongotutils import check_for_result
 from transcriptionservice.server.mongodb.db_client import DBClient
 from transcriptionservice.workers.utils import TranscriptionConfig, TranscriptionResult
 
@@ -18,7 +17,7 @@ __all__ = ["transcription_task"]
 db_info = {"db_host" : os.environ.get("MONGO_HOST", None),
            "db_port" : int(os.environ.get("MONGO_PORT", None)),
            "service_name" : os.environ.get("SERVICE_NAME", None),
-           "db_name": "result_db"}
+           "db_name": "transcriptiondb"}
 
 language = os.environ.get("LANGUAGE", None)
            
@@ -41,7 +40,7 @@ def transcription_task(self, task_info: dict, file_path: str):
     config = TranscriptionConfig(task_info["transcription_config"])
 
     # Setup flags
-    do_diarization = config.diarizationConfig["enableDiarization"]
+    do_diarization = config.diarizationConfig["enableDiarization"] and config.diarizationConfig["numberOfSpeaker"] != 1
     do_punctuation = config.enablePunctuation
 
     # Check that required services are available # TODO test
@@ -61,22 +60,40 @@ def transcription_task(self, task_info: dict, file_path: str):
     # Transtyping
     file_name = transcoding(file_path)
     
-    # Split using VAD
-    subfiles, total_duration = splitFile(file_name)
-    print(f'Input file has been split into {len(subfiles)} subfiles')
-
-    # Progress monitoring
-    total_step = 4 + do_diarization + do_punctuation
-    current_step = 1
-    speakers = None
-    self.update_state(state="STARTED", meta={"current": current_step, "total": total_step, "step": "Transcription (0%)"})
+    # Check for available transcription
+    available_transcription = db_client.fetch_transcription(task_info["hash"])
     
-    # Transcription
-    transJobIds = []
-    for subfile_path, offset, duration in subfiles:
-        transJobId = celery.send_task(name="transcribe_task", queue=task_info["service_name"], args=[subfile_path, True])
-        transJobIds.append((transJobId, offset, duration, subfile_path))
+    # Progress info
+    total_step = min(int(available_transcription is not None) + do_diarization + do_punctuation, 1)
+    current_step = 1
 
+    if available_transcription:
+        print('Transcription result already available')
+        try:
+            transcription_result = TranscriptionResult(None)
+            transcription_result.setTranscription(available_transcription["words"])
+            print(transcription_result.final_result())
+        except Exception as e:
+            print("Failed to fetch transcription: {}".format(str(e)))
+            available_transcription = None
+
+    if available_transcription is None:
+        # Split using VAD
+        subfiles, total_duration = splitFile(file_name)
+        print(f'Input file has been split into {len(subfiles)} subfiles')
+
+        # Progress monitoring
+        
+        speakers = None
+        self.update_state(state="STARTED", meta={"current": current_step, "total": total_step, "step": "Transcription (0%)"})
+        
+        # Transcription
+        transJobIds = []
+        for subfile_path, offset, duration in subfiles:
+            transJobId = celery.send_task(name="transcribe_task", queue=task_info["service_name"], args=[subfile_path, True])
+            transJobIds.append((transJobId, offset, duration, subfile_path))
+        
+    
     # Diarization (In parallel)
     if do_diarization:
         diarJobId = celery.send_task(name="diarization_task",
@@ -86,30 +103,37 @@ def transcription_task(self, task_info: dict, file_path: str):
                                            config.diarizationConfig["maxNumberOfSpeaker"]])
     
     # Wait for all the transcription jobs
-    transcriptions = []
-    pc_trans = 0.0
-    failed = False
-    for jobId, offset, duration, subfile_path in transJobIds:
+    if available_transcription is None:
+        transcriptions = []
+        pc_trans = 0.0
+        failed = False
+        for jobId, offset, duration, subfile_path in transJobIds:
+            if failed:
+                jobId.revoke()
+                os.remove(subfile_path)
+                continue
+            transcription = jobId.get(disable_sync_subtasks=False)
+            if len(transJobIds) > 1:
+                os.remove(subfile_path)
+            if jobId.status == "FAILURE":
+                failed = True
+                continue
+            transcriptions.append((transcription, offset))
+            pc_trans += (duration / total_duration) * 100
+            self.update_state(state="STARTED", meta={"current": current_step, "total": total_step, "step": f"Transcription ({pc_trans:.2f}%)"})
+        
         if failed:
-            jobId.revoke()
-            os.remove(subfile_path)
-            continue
-        transcription = jobId.get(disable_sync_subtasks=False)
-        if len(transJobIds) > 1:
-            os.remove(subfile_path)
-        if jobId.status == "FAILURE":
-            failed = True
-            continue
-        transcriptions.append((transcription, offset))
-        pc_trans += (duration / total_duration) * 100
-        self.update_state(state="STARTED", meta={"current": current_step, "total": total_step, "step": f"Transcription ({pc_trans:.2f}%)"})
-    
-    if failed:
-        raise Exception("Transcription has failed: {}".format(transcription))
-    current_step+=1
+            raise Exception("Transcription has failed: {}".format(transcription))
+        current_step+=1
 
-    # Transcription result
-    transcription_result = TranscriptionResult(transcriptions)
+        # Merge Transcription results
+        transcription_result = TranscriptionResult(transcriptions)
+
+        # Save transcription in DB
+        try:
+            db_client.push_transcription(task_info["hash"], transcription_result.words)
+        except Exception as e:
+            print("Failed to push transcription to DB: {}".format(e))
 
     # Diarization result
     if do_diarization:
@@ -135,11 +159,11 @@ def transcription_task(self, task_info: dict, file_path: str):
         transcription_result.setProcessedSegment(punctuated_text)
 
     # Write result in database
-    self.update_state(state="STARTED", meta={"current": current_step, "total": total_step, "step": "Cleaning"})
+    self.update_state(state="STARTED", meta={"current": current_step, "total": total_step, "step": "Preparing result"})
     try:
-        db_client.write_result(task_info["hash"], self.request.id, config, transcription_result)
+        result_id = db_client.push_result(file_hash=task_info["hash"], job_id=self.request.id, origin="origin", service_name=task_info["service_name"], config=config, result=transcription_result)
     except Exception as e:
-        print("Failed to write result in database: {} ".format(e))
+        raise Exception("Failed to process result")
     
     # Free ressource
     if not task_info["keep_audio"]:
@@ -148,4 +172,4 @@ def transcription_task(self, task_info: dict, file_path: str):
         except Exception as e:
             print("Failed to remove ressource {}".format(file_path))
 
-    return transcription_result.final_result()
+    return result_id
