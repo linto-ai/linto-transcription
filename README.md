@@ -78,21 +78,28 @@ docker-compose up .
 ## API
 The transcription service offers a transcription API REST to submit transcription requests.
 
+The transcription service revolves arround 2 concepts:
+* Asynchronous jobs identified with job_id: A job_id represents an ongoing transcription task.
+* Transcription results identified by result_id.
+
+Typical transcription process follows this steps:
+1. Submit your file and the transcription configuration on ```/transcribe```. The route returns a 201 with the job_id
+2. Use the ```/job/{job_id}``` route to follow the job's progress. When the job is finished, you'll be greated with a 201 alongside a result_id.
+3. Fetch the transcription result using the ```/results/{result_id}``` route specifying your desired format. 
+
 ### /transcribe
 The /transcribe route allows POST request containing an audio file.
 
 The route accepts multipart/form-data requests.
 
-Response format can be application/json, text/plain, text/vtt or text/srt specified in the accept field of the header.
+Response format can be application/json or text/plain as specified in the accept field of the header.
 
 |Form Parameter| Description | Required |
 |:-|:-|:-|
 |transcriptionConfig|(object optionnal) A transcriptionConfig Object describing transcription parameters | See [Transcription config](#transcription-config) |
 |force_sync|(boolean optionnal) If True do a synchronous request | [true | **false** | null] |
-|no_cache| (boolean optionnal) If set to true, doesn't fetch result from database|[true | **false** | null]|
 
-
-If the request is accepted, answer will be ```201``` with a json or text response containing the jobid.
+If the request is accepted, answer should be ```201``` with a json or text response containing the jobid.
 
 With accept: application/json
 ```json
@@ -103,7 +110,9 @@ With accept: text/plain
 the-job-id
 ```
 
-If the result has already been computed or the force_sync flag is set to true, the request returns a ```200``` with the transcription (see [Transcription Result](#transcription-result)).
+If the **force_sync** flag is set to true, the request returns a ```200``` with the transcription (see [Transcription Result](#transcription-result)) using the same options as the /result/{result_id} route. Synchronous requests accept additionnal return format : text/vtt or text/srt.  
+
+> The use of force_sync for big files is not recommended as it blocks a http worker for the time of the transcription.
 
 #### Transcription config
 The transcriptionConfig object describe the transcription parameters and flags of the request. It is structured as follows:
@@ -121,24 +130,36 @@ The transcriptionConfig object describe the transcription parameters and flags o
 
 ### /job/{jobid}
 
-The /job/{jobid} GET route allow you to get the state or the result of the given job.
+The /job/{jobid} GET route allow you to get the state of the given transcription job.
 
-Response format can be application/json, text/plain, text/vtt or text/srt specified in the accept field of the header.
+Response format is application/json.
 
-* If the job state is **started**, it returns a code ```202``` with informations on the progress.
-* If the job state is **finished**, it returns a code ```200``` with the [transcription result](#transcription-result).
-* If the job state is **unknown** returns a code ```404```.
+* If the job state is **started**, it returns a code ```102``` with informations on the progress.
+* If the job state is **done**, it returns a code ```201``` with the ```result_id```.
+* If the job state is **pending** returns a code ```404```. Pending can mean 2 things: a transcription worker is not yet available or the jobid does not exist. 
 * If the job state is **failed** returns a code ```400```.
 
-#### Transcription result
-The transcription result format depends on the accept field of the job request.
-* text/plain: Returns the final transcription as text. 
-```
-spk1: This is a transcription
-spk2: Diarization and punctuation are set
-```
-* application/json: Returns a json object containing the transcription results and details.
+```json
+{
+  #Task pending or wrong jobid: 404
+  {"state": "pending"}
 
+  #Task started: 102
+  {"state": "started", "progress": {"current": 1, "total": 3, "step": "Transcription (75%)"}}
+
+  #Task completed: 201
+  {"state": "done", "result_id" : "result_id"}
+
+  #Task failed: 400
+  {"state": "failed", "reason": "Something went wrong"}
+}
+```
+
+### /results/{result_id}
+The /results GET route allows you to fetch transcription result associated to a result_id.
+
+The accept header specifies the format of the result:
+* application/json returns the complete result as a json object; 
 ```json
 {
   "confidence": 0.9, # Overall transcription confidence
@@ -153,15 +174,6 @@ spk2: Diarization and punctuation are set
       "start": 0, # Segment start time
       "words": [ # Segment's word informations
         {
-          "conf": 0.600024, # Word confidence
-          "end": 0.23784, # Word stop time
-          "start": 0, # Word start time
-          "word": "this" # Word 
-        }
-        ...
-      ]
-    },
-    {
       "duration": 4.59,
       "end": 7.71991,
       "raw_segment": "diarization and punctuation are set",
@@ -184,6 +196,32 @@ spk2: Diarization and punctuation are set
   "transcription_result": "spk1: This is a transcription\nspk2: Diarization and punctuation are set" # Final transcription
 }
 ```
+* text/plain returns the final transcription as text
+```
+spk1: This is a transcription
+spk2: Diarization and punctuation are set
+```
+* text/vtt returns the transcription formated as WEBVTT captions.
+```
+WEBVTT Kind: captions; Language: fr_FR
+
+00:00.000 --> 00:03.129
+This is a transcription
+
+00:03.129 --> 00:07.719
+Diarization and punctuation are set
+```
+* text/srt returns the transcription formated as SubRip Subtitle.
+```
+1
+00:00:00,000 --> 00:00:03,129
+This is a transcription
+
+2
+00:00:03,129 --> 00:00:07,719
+Diarization and punctuation are set
+```
+
 ### /docs
 The /docs route offers access to a swagger-ui interface with the API specifications (OAS3).
 
@@ -192,22 +230,38 @@ It also allows to directly test requests using pre-filled modifiable parameters.
 ## Usage
 Request exemple:
 
+Initial request
 ```bash
-curl -X POST "http://HOST_ADDRESS:HOST_PORT/transcribe" -H  "accept: application/json" -H  "Content-Type: multipart/form-data" -F "transcriptionConfig={
+curl -X POST "http://MY_HOST:MY_PORT/transcribe" -H  "accept: application/json" -H  "Content-Type: multipart/form-data" -F 'transcriptionConfig={
   "transcribePerChannel": false,
   "enablePunctuation": true,
   "diarizationConfig": {
     "enableDiarization": true,
     "numberOfSpeaker": null,
     "maxNumberOfSpeaker": null
-  },
-  "subtitleConfig": {
-    "enableSubtitle": false,
-    "subtitleFormat": "VTT",
-    "maxCharacterPerLine": 0
   }
-}" -F "no_cache=false" -F "force_sync=false" -F "file=@MY_AUDIO.wav;type=audio/x-wav"
+}' -F "force_sync=" -F "file=@MY_AUDIO.wav;type=audio/x-wav"
+
+> {"jobid": "de37224e-fd9d-464d-9004-dcbf3c5b4300"}
 ```
 
+Request state
+```bash
+curl -X GET "http://MY_HOST:MY_PORT/job/6e3f8b5a-5b5a-4c3d-97b6-3c438d7ced25" -H  "accept: application/json"
+
+> {"result_id": "769d9c20-ad8c-4957-9581-437172434ec0", "state": "done"}
+```
+
+Result
+```bash
+curl -X GET "http://MY_HOST:MY_PORT/results/769d9c20-ad8c-4957-9581-437172434ec0" -H  "accept: text/vtt"
+> WEBVTT Kind: captions; Language: fr_FR
+
+00:00.000 --> 00:03.129
+This is a transcription
+
+00:03.129 --> 00:07.719
+Diarization and punctuation are set
+```
 ## License
 This project is licensed under AGPLv3 license. Please refer to the LICENSE file for full description of the license.
