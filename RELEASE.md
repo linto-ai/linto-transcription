@@ -1,5 +1,15 @@
+# 1.1.1
+ - Added: Text normalisation.
+ - Added: Text to Number. 
+ - Added: Result presentation options as query string.
+ - Added: MongoDB error handler. 
+ - Changed: Steps progression.
+ - Updated: README
+ - Updated: API specs.
+ - Updated: transcription_request test script.
+
 # 1.1.0
- - Added: A new route has been added /results/{result_id} allows to fetch transcription result and to specify the result format. 
+ - Added: A new route has been added /results/{result_id} allows to fetch transcription result and to specify the result format.
  - Changed: MongoDB server availibility timeout check greatly reduced to prevent hanging when mongo is unavailable.
  - Changed: The /job/{job_id} route now returns a ressource_id to be fetch on the /results/{result_id} when the task is completed.
  - Changed: Diarization is ignored when number of speaker is 1

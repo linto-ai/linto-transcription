@@ -10,5 +10,6 @@ requests>=2.22.0
 redis>=3.5.3
 supervisor>=4.2.2
 numpy>=1.18.5
+text2num>=2.4.0
 webrtcvad>=2.0.10
 wavio>=0.0.4

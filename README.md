@@ -1,14 +1,12 @@
 # LinTO Platform Transcription service
 ## Description
-The transcription service is the interface for requesting transcriptions.
+The transcription service is the API for requesting transcriptions.
 
 The service allows you to:
-* Request asynchronous transcriptions from audio file.
+* Request asynchronous transcriptions from a variety of audio or video files.
 * Follow transcription task state and progress.
 * Automaticaly store transcription results in a database.
-* Use stored results to avoid recomputation.
-
-The transcription service relies on a service message broker to call the different sub-services needed for a transcription request.
+* Fetch transcription results with different formats and options
 
 ## Usage
 ### Prerequisites
@@ -85,7 +83,7 @@ The transcription service revolves arround 2 concepts:
 Typical transcription process follows this steps:
 1. Submit your file and the transcription configuration on ```/transcribe```. The route returns a 201 with the job_id
 2. Use the ```/job/{job_id}``` route to follow the job's progress. When the job is finished, you'll be greated with a 201 alongside a result_id.
-3. Fetch the transcription result using the ```/results/{result_id}``` route specifying your desired format. 
+3. Fetch the transcription result using the ```/results/{result_id}``` route specifying your desired format and options. 
 
 ### /transcribe
 The /transcribe route allows POST request containing an audio file.
@@ -99,6 +97,7 @@ Response format can be application/json or text/plain as specified in the accept
 |transcriptionConfig|(object optionnal) A transcriptionConfig Object describing transcription parameters | See [Transcription config](#transcription-config) |
 |force_sync|(boolean optionnal) If True do a synchronous request | [true | **false** | null] |
 
+
 If the request is accepted, answer should be ```201``` with a json or text response containing the jobid.
 
 With accept: application/json
@@ -110,15 +109,14 @@ With accept: text/plain
 the-job-id
 ```
 
-If the **force_sync** flag is set to true, the request returns a ```200``` with the transcription (see [Transcription Result](#transcription-result)) using the same options as the /result/{result_id} route. Synchronous requests accept additionnal return format : text/vtt or text/srt.  
+If the **force_sync** flag is set to true, the request returns a ```200``` with the transcription (see [Transcription Results](#transcription-results)) using the same options as the /result/{result_id} route. Synchronous requests accept additionnal return format : text/vtt or text/srt.  
 
-> The use of force_sync for big files is not recommended as it blocks a http worker for the time of the transcription.
+> The use of force_sync for big files is not recommended as it blocks a http worker for the duration of the transcription.
 
 #### Transcription config
 The transcriptionConfig object describe the transcription parameters and flags of the request. It is structured as follows:
 ```json
 {
-  "transcribePerChannel": false, #Not implemented yet
   "enablePunctuation": false, # Applies punctuation
   "diarizationConfig": {
     "enableDiarization": false, #Enables speaker diarization
@@ -158,6 +156,8 @@ Response format is application/json.
 ### /results/{result_id}
 The /results GET route allows you to fetch transcription result associated to a result_id.
 
+
+#### Transcription results
 The accept header specifies the format of the result:
 * application/json returns the complete result as a json object; 
 ```json
@@ -203,7 +203,7 @@ spk2: Diarization and punctuation are set
 ```
 * text/vtt returns the transcription formated as WEBVTT captions.
 ```
-WEBVTT Kind: captions; Language: fr_FR
+WEBVTT Kind: captions; Language: en_US
 
 00:00.000 --> 00:03.129
 This is a transcription
@@ -221,6 +221,11 @@ This is a transcription
 00:00:03,129 --> 00:00:07,719
 Diarization and punctuation are set
 ```
+#### Query string options
+Additionnaly you can specify options using query string:
+* return_raw: if set to true, return the raw transcription (No punctuation and no post processing).
+* convert_number: if set to true, convert numbers from characters to digits.
+* wordsub: accepts multiple values formated as ```originalWord:substituteWord```. Substitute words in the final transcription.
 
 ### /docs
 The /docs route offers access to a swagger-ui interface with the API specifications (OAS3).
@@ -230,10 +235,9 @@ It also allows to directly test requests using pre-filled modifiable parameters.
 ## Usage
 Request exemple:
 
-Initial request
+__Initial request__
 ```bash
 curl -X POST "http://MY_HOST:MY_PORT/transcribe" -H  "accept: application/json" -H  "Content-Type: multipart/form-data" -F 'transcriptionConfig={
-  "transcribePerChannel": false,
   "enablePunctuation": true,
   "diarizationConfig": {
     "enableDiarization": true,
@@ -245,17 +249,17 @@ curl -X POST "http://MY_HOST:MY_PORT/transcribe" -H  "accept: application/json" 
 > {"jobid": "de37224e-fd9d-464d-9004-dcbf3c5b4300"}
 ```
 
-Request state
+__Request job status__
 ```bash
 curl -X GET "http://MY_HOST:MY_PORT/job/6e3f8b5a-5b5a-4c3d-97b6-3c438d7ced25" -H  "accept: application/json"
 
 > {"result_id": "769d9c20-ad8c-4957-9581-437172434ec0", "state": "done"}
 ```
 
-Result
+__Fetch result__
 ```bash
 curl -X GET "http://MY_HOST:MY_PORT/results/769d9c20-ad8c-4957-9581-437172434ec0" -H  "accept: text/vtt"
-> WEBVTT Kind: captions; Language: fr_FR
+> WEBVTT Kind: captions; Language: en_US
 
 00:00.000 --> 00:03.129
 This is a transcription
@@ -265,3 +269,9 @@ Diarization and punctuation are set
 ```
 ## License
 This project is licensed under AGPLv3 license. Please refer to the LICENSE file for full description of the license.
+
+## Acknowledgment
+* [celery](https://docs.celeryproject.org/en/stable/index.html): Distributed Task Queue.
+* [pymongo](https://pypi.org/project/pymongo/): A MongoDB python client.
+* [text2num](https://pypi.org/project/text2num/): A text to number convertion library.
+* [Supervisor](http://supervisord.org/): A Process Control System.

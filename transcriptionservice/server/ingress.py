@@ -21,6 +21,8 @@ AUDIO_FOLDER = "/opt/audio"
 SUPPORTED_HEADER_FORMAT = ["text/plain", "application/json", "text/vtt", "text/srt"]
 
 app = Flask("__services_manager__")
+app.config["JSON_AS_ASCII"] = False
+app.config["JSON_SORT_KEYS"] = False
 
 logging.basicConfig(format='%(asctime)s %(name)s %(levelname)s: %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
 logger = logging.getLogger("__services_manager__")
@@ -41,7 +43,7 @@ def jobstatus(jobid):
     state = task.status
 
     if state == task_states.STARTED:
-        return json.dumps({"state": "started", "progress" : task.info}), 202
+        return json.dumps({"state": "started", "steps" : task.info.get("steps", {})}), 202
     elif state == task_states.SUCCESS:
         result_id = task.get()
         return json.dumps({"state": "done", "result_id": result_id}), 201
@@ -54,15 +56,28 @@ def jobstatus(jobid):
 
 @app.route('/results/<result_id>', methods=["GET"])
 def results(result_id):
-    expected_format =request.headers.get('accept')
+    # Expected format
+    expected_format = request.headers.get('accept')
     if not expected_format in SUPPORTED_HEADER_FORMAT:
         return "Accept format {} not supported. Supported MIME types are :{}".format(expected_format, " ".join(SUPPORTED_HEADER_FORMAT)), 400
     
+    # Result
     result = db_client.fetch_result(result_id)
     if result is None:
         return f"No result associated with id {result_id}", 404
-    return formatResult(result, expected_format), 200
+    logger.debug(f"Returning result fo result_id {result_id}")
 
+    # Query parameters
+    return_raw = request.args.get("return_raw", False) in [1, True, "true"]
+    convert_numbers = request.args.get("convert_numbers", False) in [1, True, "true"]
+    sub_list = request.args.getlist("wordsub", None)
+    try:
+        sub_list = [tuple(elem.split(":")) for elem in sub_list if elem.strip() != "" and ":" in elem]
+    except:
+        logger.warning("Could not parse substitution items: {}".format(sub_list))
+        sub_list = []
+
+    return formatResult(result, expected_format, raw_return=return_raw, convert_numbers=convert_numbers, user_sub=sub_list), 200
 
 @app.route('/transcribe', methods=["POST"])
 def transcription():
@@ -89,8 +104,12 @@ def transcription():
     logger.debug(f"force_sync: {force_sync}")
 
     # Parse transcription config
-    transcription_config = TranscriptionConfig(request.form.get("transcriptionConfig", {}))
-    logger.debug(transcription_config)
+    try:
+        transcription_config = TranscriptionConfig(request.form.get("transcriptionConfig", {}))
+        logger.debug(transcription_config)
+    except Exception:
+        logger.debug(request.form.get("transcriptionConfig", {}))
+        return "Failed to interpret transcription config", 400
 
     requestlog(logger, request.remote_addr, transcription_config, file_hash, False)
 
@@ -110,7 +129,7 @@ def transcription():
                  "keep_audio": config.keep_audio}
     
     task = transcription_task.apply_async(queue=config.service_name+'_requests', args=[task_info, file_path])
-
+    logger.debug(f"Create trancription task with id {task.id}")
     # Forced synchronous
     if force_sync:
         result_id = task.get()

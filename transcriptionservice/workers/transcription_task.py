@@ -9,7 +9,7 @@ from pymongo import MongoClient
 from transcriptionservice.workers.audio import transcoding, splitFile
 from transcriptionservice.workers.celeryapp import celery
 from transcriptionservice.server.mongodb.db_client import DBClient
-from transcriptionservice.workers.utils import TranscriptionConfig, TranscriptionResult
+from transcriptionservice.workers.utils import TranscriptionConfig, TranscriptionResult, TaskProgression, StepState
 
 __all__ = ["transcription_task"]
 
@@ -34,7 +34,7 @@ def transcription_task(self, task_info: dict, file_path: str):
     - "hash": Audio File Hash
     - "keep_audio": If False, the audio file is deleted after the task.
     """
-    self.update_state(state="STARTED", meta={"current": 0, "total": 1, "step": "Started"})
+    self.update_state(state="STARTED", meta={"steps": {}})
     print(task_info)
 
     config = TranscriptionConfig(task_info["transcription_config"])
@@ -67,41 +67,57 @@ def transcription_task(self, task_info: dict, file_path: str):
     total_step = min(int(available_transcription is not None) + do_diarization + do_punctuation, 1)
     current_step = 1
 
+    progress = TaskProgression([("preprocessing", True),
+                                ("transcription", True),
+                                ("diarization", do_diarization), 
+                                ("punctuation", do_punctuation),
+                                ("postprocessing", True)])
+    
+    progress.steps["preprocessing"].state = StepState.STARTED
+    self.update_state(state="STARTED", meta=progress.toDict())
+
     if available_transcription:
         print('Transcription result already available')
         try:
             transcription_result = TranscriptionResult(None)
             transcription_result.setTranscription(available_transcription["words"])
-            print(transcription_result.final_result())
+            progress.steps["transcription"].state = StepState.DONE
         except Exception as e:
             print("Failed to fetch transcription: {}".format(str(e)))
             available_transcription = None
 
+    self.update_state(state="STARTED", meta=progress.toDict())
+
     if available_transcription is None:
         # Split using VAD
+        progress.steps["transcription"].state = StepState.STARTED
         subfiles, total_duration = splitFile(file_name)
         print(f'Input file has been split into {len(subfiles)} subfiles')
 
         # Progress monitoring
-        
         speakers = None
-        self.update_state(state="STARTED", meta={"current": current_step, "total": total_step, "step": "Transcription (0%)"})
+        progress.steps["preprocessing"].state = StepState.DONE
+        self.update_state(state="STARTED", meta=progress.toDict())
         
         # Transcription
         transJobIds = []
+        progress.steps["transcription"].state = StepState.STARTED
         for subfile_path, offset, duration in subfiles:
             transJobId = celery.send_task(name="transcribe_task", queue=task_info["service_name"], args=[subfile_path, True])
             transJobIds.append((transJobId, offset, duration, subfile_path))
         
+        self.update_state(state="STARTED", meta=progress.toDict())
     
     # Diarization (In parallel)
     if do_diarization:
+        progress.steps["diarization"].state = StepState.STARTED
         diarJobId = celery.send_task(name="diarization_task",
                                      queue='diarization', 
                                      args=[file_name, 
                                            config.diarizationConfig["numberOfSpeaker"], 
                                            config.diarizationConfig["maxNumberOfSpeaker"]])
-    
+        self.update_state(state="STARTED", meta=progress.toDict())
+
     # Wait for all the transcription jobs
     if available_transcription is None:
         transcriptions = []
@@ -119,9 +135,12 @@ def transcription_task(self, task_info: dict, file_path: str):
                 failed = True
                 continue
             transcriptions.append((transcription, offset))
-            pc_trans += (duration / total_duration) * 100
-            self.update_state(state="STARTED", meta={"current": current_step, "total": total_step, "step": f"Transcription ({pc_trans:.2f}%)"})
+            progress.steps["transcription"].progress += (duration / total_duration)
+            self.update_state(state="STARTED", meta=progress.toDict())
+        progress.steps["transcription"].state = StepState.DONE
         
+        self.update_state(state="STARTED", meta=progress.toDict())
+
         if failed:
             raise Exception("Transcription has failed: {}".format(transcription))
         current_step+=1
@@ -137,29 +156,33 @@ def transcription_task(self, task_info: dict, file_path: str):
 
     # Diarization result
     if do_diarization:
-        self.update_state(state="STARTED", meta={"current": current_step, "total": total_step, "step": "Diarization"})
+        self.update_state(state="STARTED", meta=progress.toDict())
         speakers = diarJobId.get(disable_sync_subtasks=False)
+        progress.steps["diarization"].state = StepState.DONE
+        self.update_state(state="STARTED", meta=progress.toDict())
         if diarJobId.status == "FAILURE":
             raise Exception("Diarization has failed: {}".format(speakers))
         else:
             transcription_result.setDiarizationResult(speakers)
-        current_step += 1
     else:
         transcription_result.setNoDiarization()
 
     # Punctuation 
     if do_punctuation:
-        self.update_state(state="STARTED", meta={"current": current_step, "total": total_step, "step": "Punctuation"})
+        progress.steps["punctuation"].state = StepState.STARTED
+        self.update_state(state="STARTED", meta=progress.toDict())
         puncJobId = celery.send_task(name="punctuation_task", queue=f'punctuation_{language}', args=[[seg.toString() for seg in transcription_result.segments]])
         try: 
             punctuated_text = puncJobId.get(disable_sync_subtasks=False)
         except Exception as e:
             raise Exception("Punctuation has failed: {}".format(str(e)))
-        current_step += 1
+            progress.steps["punctuation"].state = StepState.DONE
+        self.update_state(state="STARTED", meta=progress.toDict())
         transcription_result.setProcessedSegment(punctuated_text)
 
     # Write result in database
-    self.update_state(state="STARTED", meta={"current": current_step, "total": total_step, "step": "Preparing result"})
+    progress.steps["postprocessing"].state = StepState.STARTED
+    self.update_state(state="STARTED", meta=progress.toDict())
     try:
         result_id = db_client.push_result(file_hash=task_info["hash"], job_id=self.request.id, origin="origin", service_name=task_info["service_name"], config=config, result=transcription_result)
     except Exception as e:
@@ -171,5 +194,5 @@ def transcription_task(self, task_info: dict, file_path: str):
             os.remove(file_name)
         except Exception as e:
             print("Failed to remove ressource {}".format(file_path))
-
+    progress.steps["postprocessing"].state = StepState.DONE
     return result_id

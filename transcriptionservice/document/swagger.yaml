@@ -117,6 +117,30 @@ paths:
           description: Result id
           schema:
             type: string
+        - name: convert_numbers
+          in: query
+          required: false
+          description: If true, numbers are replaced with digits.
+          schema:
+            type: boolean
+            default: false
+        - name: return_raw
+          in: query
+          required: false
+          description: If true, return the raw text instead of the processed text.
+          schema:
+            type: boolean
+            default: false
+        - name: wordsub
+          in: query
+          required: false
+          description: "Word substitution list originalWord:substituteWord"
+          style: form
+          schema:
+            type: array
+            items:
+              type: string
+
       responses:
         200:
           description: Ressource available
@@ -144,9 +168,6 @@ components:
     transcriptionConfig:
       type: object
       properties:
-        transcribePerChannel:
-          type: boolean
-          default: false
         enablePunctuation:
           type: boolean
           default: false
@@ -177,8 +198,20 @@ components:
         state:
           type: string
           enum: [started, pending]
-        progress:
+        steps:
           type: object
+          properties:
+            transcription:
+              type: object
+              properties:
+                required:
+                  type: boolean
+                state:
+                  type: string
+                  default: "pending | started | done"
+                progress:
+                  type: number
+                  default: 0.0
     jobFinished:
       type: object
       properties:
