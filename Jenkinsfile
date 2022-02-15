@@ -1,7 +1,7 @@
 pipeline {
     agent any
     environment {
-        DOCKER_HUB_REPO = "linto-platform-transcription-service"
+        DOCKER_HUB_REPO = "lintoai/linto-platform-transcription-service"
         DOCKER_HUB_CRED = 'docker-hub-credentials'
 
         VERSION = ''
