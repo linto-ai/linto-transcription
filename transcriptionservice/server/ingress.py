@@ -34,11 +34,6 @@ def healthcheck():
 
 @app.route('/job/<jobid>', methods=["GET"])
 def jobstatus(jobid):
-    # Header check
-    expected_format = request.headers.get('accept')
-    if expected_format != "application/json":
-        return "Accept format {} not supported. Supported MIME types are :{}".format(expected_format, "application/json"), 400
-
     task = AsyncResult(jobid)
     state = task.status
 

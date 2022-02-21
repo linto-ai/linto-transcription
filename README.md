@@ -109,7 +109,7 @@ With accept: text/plain
 the-job-id
 ```
 
-If the **force_sync** flag is set to true, the request returns a ```200``` with the transcription (see [Transcription Results](#transcription-results)) using the same options as the /result/{result_id} route. Synchronous requests accept additionnal return format : text/vtt or text/srt.  
+If the **force_sync** flag is set to true, the request returns a ```200``` with the transcription (see [Transcription Results](#transcription-results)) using the same accept options as the /result/{result_id} route.  
 
 > The use of force_sync for big files is not recommended as it blocks a http worker for the duration of the transcription.
 
@@ -155,7 +155,6 @@ Response format is application/json.
 
 ### /results/{result_id}
 The /results GET route allows you to fetch transcription result associated to a result_id.
-
 
 #### Transcription results
 The accept header specifies the format of the result:

@@ -1,28 +1,26 @@
-from typing import List, Tuple
 import time
-from transcriptionservice.workers.utils import TranscriptionResult, SpeechSegment, Word
+from typing import List, Tuple
 
-clean_dict = {
-    ord('.') : None,
-    ord(',') : None,
-    ord(':') : None,
-    ord(';') : None,
-    ord('!') : None,
-    ord('?') : None,
-}
+from transcriptionservice.workers.utils import TranscriptionResult, SpeechSegment, Word
+from .normalization import textToNum
 
 END_MARKERS = [".", ";", "!", "?", ":"]
 
 class SubtitleItem:
     """ SubTitleItem format a speech segment to subtitling item"""
-    def __init__(self, words: List[Tuple[Word, str]]):
+    def __init__(self, words: List[Tuple[Word, str]], language: str = ""):
         self.words, self.final_words = zip(*words)
+        self.language = language
         self.start = min([w.start for w in self.words])
         self.end = max([w.end for w in self.words])
 
-    def toSRT(self, index_start: int = 0, max_char_line: int = 40,
-                    max_lines: int = 2,
-                    display_spk: bool = False) -> Tuple[str, int]:
+    def toSRT(self, 
+              index_start: int = 0, 
+              max_char_line: int = 40,
+              return_raw: bool = False, 
+              convert_numbers: bool = False, 
+              max_lines: int = 2,
+              display_spk: bool = False) -> Tuple[str, int]:
         """ Ouput the Subtitle Item with SRT format"""
         i = 0
         output = ""
@@ -46,15 +44,21 @@ class SubtitleItem:
                     words = []
                     c_l = 0
             words.append(word)
-            c_w += len(final_word)
-            finals.append(final_word)
+            c_w += len(word.word if return_raw else final_word)
+            finals.append(word.word if return_raw else final_word)
         current_item += "{}\n".format(" ".join(finals))
+        if convert_numbers:
+            current_item = textToNum(current_item, self.language)
         output += "{}\n{} --> {}\n{}\n\n".format(index_start + i + 1, self.timeStampSRT(words[0].start), 
                                                 self.timeStampSRT(words[-1].end), 
                                                 current_item)
         return output, i+1
 
-    def toVTT(self, display_spk: bool = False, max_char_line: int = 40, max_line: int = 2) -> str:
+    def toVTT(self,  
+              return_raw: bool = False, 
+              convert_numbers: bool = False, 
+              max_char_line: int = 40, 
+              max_line: int = 2) -> str:
         """ Ouput the Subtitle Item with SRT format"""
         output = ""
         if len(str(self)) > max_char_line * max_line:
@@ -65,23 +69,31 @@ class SubtitleItem:
                 if c > max_char_line * max_line:
                     output += "{} --> {}\n".format(self.timeStampVTT(words[0].start),
                                                   self.timeStampVTT(words[-1].end))
-                    output += "{}\n\n".format(" ".join(finals))
+                    current_item = "{}\n\n".format(" ".join(finals))
+                    if convert_numbers:
+                        current_item = textToNum(current_item, self.language)
+                    output += current_item
                     words = []
                     finals = []
                     c = 0
                 words.append(word)
-                finals.append(final_word)
-                c += len(final_word)
+                finals.append(word.word if return_raw else final_word)
+                c += len(word.word if return_raw else final_word)
             output += "{} --> {}\n".format(self.timeStampVTT(words[0].start),
                                           self.timeStampVTT(words[-1].end))
-            output += "{}\n\n".format(" ".join(finals))
+            current_item = "{}\n\n".format(" ".join(finals))
+            if convert_numbers:
+                current_item = textToNum(current_item, self.language)
+            output += current_item
             return output
 
         output = "{} --> {}\n".format(self.timeStampVTT(self.start),
                                       self.timeStampVTT(self.end))
-        if display_spk:
-            output += "<v {}>".format("self.speaker")
-        output += "{}\n\n".format(str(self))
+
+        if return_raw:
+            output += "{}\n\n".format(" ".join([w.word for w in self.words]))
+        else:
+            output += "{}\n\n".format(str(self))
         return output
         
     def timeStampSRT(self, t_str) -> str:
@@ -105,8 +117,9 @@ class SubtitleItem:
         return " ".join(self.final_words)
 
 class Subtitles:
-    def __init__(self, transcription: TranscriptionResult):
+    def __init__(self, transcription: TranscriptionResult, language: str):
         self.transcription = transcription
+        self.language = language
         self.subtitleItems = []
         self._setupItems()
         
@@ -125,23 +138,23 @@ class Subtitles:
         for i, word in enumerate(segment.words[:-1]):
             current_words.append((word, processed_words[i]))
             if processed_words[i][-1] in END_MARKERS or segment.words[i+1].start - word.end > next_item_skip_t:
-                items.append(SubtitleItem(current_words))
+                items.append(SubtitleItem(current_words, self.language))
                 current_words = []
         current_words.append((segment.words[-1], processed_words[-1]))
-        items.append(SubtitleItem(current_words))
+        items.append(SubtitleItem(current_words, self.language))
         return items
             
-    def toSRT(self) -> str:
+    def toSRT(self, return_raw: bool = False, convert_numbers: bool = False) -> str:
         output = ""
         i = 0
         for item in self.subtitleItems:
-            r, n = item.toSRT(i)
+            r, n = item.toSRT(i, return_raw=return_raw, convert_numbers=convert_numbers)
             output+= r 
             i+=n
         return output
 
-    def toVTT(self, language: str) -> str:
-        output = "WEBVTT Kind: captions; Language: {}\n\n".format(language)
+    def toVTT(self, return_raw: bool = False, convert_numbers: bool = False) -> str:
+        output = "WEBVTT Kind: captions; Language: {}\n\n".format(self.language)
         for item in self.subtitleItems:
-            output += item.toVTT()
+            output += item.toVTT(return_raw=return_raw, convert_numbers=convert_numbers)
         return output

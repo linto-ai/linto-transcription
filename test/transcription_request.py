@@ -14,7 +14,7 @@ def fetch_result(result_api: str, result_id: str, result_format: str, returnRaw:
                             headers={"accept":HEADER_FORMAT[result_format]})
     
     if response.status_code != 200:
-        print(f"Failed to retrieve a result for result_id {result_id}")
+        print(f"Failed to retrieve a result for result_id {result_id}: Returned code {response.status_code}")
         return None
     
     return response.text

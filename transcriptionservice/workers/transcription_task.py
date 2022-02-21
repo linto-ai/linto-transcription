@@ -62,10 +62,6 @@ def transcription_task(self, task_info: dict, file_path: str):
     
     # Check for available transcription
     available_transcription = db_client.fetch_transcription(task_info["hash"])
-    
-    # Progress info
-    total_step = min(int(available_transcription is not None) + do_diarization + do_punctuation, 1)
-    current_step = 1
 
     progress = TaskProgression([("preprocessing", True),
                                 ("transcription", True),
@@ -82,9 +78,11 @@ def transcription_task(self, task_info: dict, file_path: str):
             transcription_result = TranscriptionResult(None)
             transcription_result.setTranscription(available_transcription["words"])
             progress.steps["transcription"].state = StepState.DONE
+            progress.steps["preprocessing"].state = StepState.DONE
         except Exception as e:
             print("Failed to fetch transcription: {}".format(str(e)))
             available_transcription = None
+        
 
     self.update_state(state="STARTED", meta=progress.toDict())
 
@@ -143,7 +141,6 @@ def transcription_task(self, task_info: dict, file_path: str):
 
         if failed:
             raise Exception("Transcription has failed: {}".format(transcription))
-        current_step+=1
 
         # Merge Transcription results
         transcription_result = TranscriptionResult(transcriptions)

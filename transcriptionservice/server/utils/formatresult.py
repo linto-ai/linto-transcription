@@ -36,12 +36,13 @@ def formatResult(result: dict,
         if convert_numbers:
             final_result = textToNum(final_result, language)
         return final_result
+
     elif return_format == 'text/vtt':
         t_result = TranscriptionResult.fromDict(result)
-        return Subtitles(t_result).toVTT(language)
+        return Subtitles(t_result, language).toVTT(return_raw=raw_return, convert_numbers=convert_numbers)
 
     elif return_format == 'text/srt':
         t_result = TranscriptionResult.fromDict(result)
-        return Subtitles(t_result).toSRT()
+        return Subtitles(t_result, language).toSRT(return_raw=raw_return, convert_numbers=convert_numbers)
     else:
         raise Exception("Unknown return format")

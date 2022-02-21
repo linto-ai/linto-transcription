@@ -26,7 +26,7 @@ class SpeechSegment:
     def toString(self, include_spkid: bool = False, spk_sep: str = ":"):
         output = f"{self.speaker_id}{spk_sep} " if include_spkid and self.speaker_id is not None else ""
         return output + (self.raw_segment if self.processed_segment is None else self.processed_segment)
-    
+
     @property
     def raw_segment(self) -> str:
         return " ".join([w.word for w in self.words]).strip()

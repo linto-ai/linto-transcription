@@ -1,3 +1,8 @@
+# 1.1.2
+ - Added raw_return and convert_number to VTT and SRT format
+ - Removed accept header check on /job/ route
+ - Cleanup
+
 # 1.1.1
  - Added: Text normalisation.
  - Added: Text to Number. 
