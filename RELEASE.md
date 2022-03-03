@@ -1,3 +1,8 @@
+# 1.1.2h1
+ - Fixed convertnumber converting spk id 1
+ - Fixed usersub not applied to subtitles
+ - Fixed text cleaning and substitutions not applied to chunks of subtitle.
+
 # 1.1.2
  - Added raw_return and convert_number to VTT and SRT format
  - Removed accept header check on /job/ route

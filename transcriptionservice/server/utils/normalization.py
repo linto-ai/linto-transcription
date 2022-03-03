@@ -10,7 +10,7 @@ basic_sub = [("' ", "'"),
 lang_spec_sub = {
     "fr_FR": [("pour cent", "%"), 
               ("pourcent", "%"),
-              (r"(^|[^\dA-Z])([1])([^\d]|$)", r"\1un\3"),
+              (r"(^|[^\dA-Z])([1])([^\d:]|$)", r"\1un\3"),
               ]
 }
 
@@ -20,7 +20,7 @@ def textToNum(text: str, language: str) -> str:
     return "\n".join([alpha2digit(elem, language[:2]) for elem in text.split("\n")])
 
 def cleanText(text: str, language: str, user_sub: list) -> str:
-    logger.debug(text)
+    logger.debug(user_sub)
     clean_text = text
 
     # Basic substitutions

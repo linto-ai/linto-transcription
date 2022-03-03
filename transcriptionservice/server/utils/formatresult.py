@@ -39,10 +39,10 @@ def formatResult(result: dict,
 
     elif return_format == 'text/vtt':
         t_result = TranscriptionResult.fromDict(result)
-        return Subtitles(t_result, language).toVTT(return_raw=raw_return, convert_numbers=convert_numbers)
+        return Subtitles(t_result, language).toVTT(return_raw=raw_return, convert_numbers=convert_numbers, user_sub=user_sub)
 
     elif return_format == 'text/srt':
         t_result = TranscriptionResult.fromDict(result)
-        return Subtitles(t_result, language).toSRT(return_raw=raw_return, convert_numbers=convert_numbers)
+        return Subtitles(t_result, language).toSRT(return_raw=raw_return, convert_numbers=convert_numbers, user_sub=user_sub)
     else:
         raise Exception("Unknown return format")

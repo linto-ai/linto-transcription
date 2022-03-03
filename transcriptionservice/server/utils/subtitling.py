@@ -2,7 +2,7 @@ import time
 from typing import List, Tuple
 
 from transcriptionservice.workers.utils import TranscriptionResult, SpeechSegment, Word
-from .normalization import textToNum
+from .normalization import textToNum, cleanText
 
 END_MARKERS = [".", ";", "!", "?", ":"]
 
@@ -14,11 +14,17 @@ class SubtitleItem:
         self.start = min([w.start for w in self.words])
         self.end = max([w.end for w in self.words])
 
+    def formatUtterance(self, utterance: str, convert_numbers: bool, user_sub: List[Tuple[str, str]]) -> str:
+        if convert_numbers:
+            utterance = textToNum(utterance, self.language)
+        return cleanText(utterance, self.language, user_sub)
+
     def toSRT(self, 
               index_start: int = 0, 
               max_char_line: int = 40,
               return_raw: bool = False, 
-              convert_numbers: bool = False, 
+              convert_numbers: bool = False,
+              user_sub: List[Tuple[str, str]] = [], 
               max_lines: int = 2,
               display_spk: bool = False) -> Tuple[str, int]:
         """ Ouput the Subtitle Item with SRT format"""
@@ -36,9 +42,10 @@ class SubtitleItem:
                 c_l += 1
                 c_w = 0
                 if c_l >= max_lines:
+                    final_item = self.formatUtterance(current_item, convert_numbers, user_sub)
                     output += "{}\n{} --> {}\n{}\n\n".format(index_start + i + 1, self.timeStampSRT(words[0].start), 
                                                          self.timeStampSRT(words[-1].end), 
-                                                         current_item)
+                                                         final_item)
                     current_item = ""
                     i+=1
                     words = []
@@ -47,16 +54,16 @@ class SubtitleItem:
             c_w += len(word.word if return_raw else final_word)
             finals.append(word.word if return_raw else final_word)
         current_item += "{}\n".format(" ".join(finals))
-        if convert_numbers:
-            current_item = textToNum(current_item, self.language)
+        final_item = self.formatUtterance(current_item, convert_numbers, user_sub)
         output += "{}\n{} --> {}\n{}\n\n".format(index_start + i + 1, self.timeStampSRT(words[0].start), 
-                                                self.timeStampSRT(words[-1].end), 
-                                                current_item)
+                                                self.timeStampSRT(words[-1].end),
+                                                final_item)
         return output, i+1
 
     def toVTT(self,  
               return_raw: bool = False, 
               convert_numbers: bool = False, 
+              user_sub: List[Tuple[str, str]] = [],
               max_char_line: int = 40, 
               max_line: int = 2) -> str:
         """ Ouput the Subtitle Item with SRT format"""
@@ -69,10 +76,8 @@ class SubtitleItem:
                 if c > max_char_line * max_line:
                     output += "{} --> {}\n".format(self.timeStampVTT(words[0].start),
                                                   self.timeStampVTT(words[-1].end))
-                    current_item = "{}\n\n".format(" ".join(finals))
-                    if convert_numbers:
-                        current_item = textToNum(current_item, self.language)
-                    output += current_item
+                    final_item = self.formatUtterance("{}\n\n".format(" ".join(finals)), convert_numbers, user_sub)
+                    output += final_item
                     words = []
                     finals = []
                     c = 0
@@ -81,19 +86,17 @@ class SubtitleItem:
                 c += len(word.word if return_raw else final_word)
             output += "{} --> {}\n".format(self.timeStampVTT(words[0].start),
                                           self.timeStampVTT(words[-1].end))
-            current_item = "{}\n\n".format(" ".join(finals))
-            if convert_numbers:
-                current_item = textToNum(current_item, self.language)
-            output += current_item
+            final_item = self.formatUtterance("{}\n\n".format(" ".join(finals)), convert_numbers, user_sub)
+            output += final_item
             return output
 
         output = "{} --> {}\n".format(self.timeStampVTT(self.start),
                                       self.timeStampVTT(self.end))
 
         if return_raw:
-            output += "{}\n\n".format(" ".join([w.word for w in self.words]))
+            output += "{}\n\n".format(self.formatUtterance(" ".join([w.word for w in self.words]), convert_numbers, user_sub))
         else:
-            output += "{}\n\n".format(str(self))
+            output += "{}\n\n".format(self.formatUtterance(str(self), convert_numbers, user_sub))
         return output
         
     def timeStampSRT(self, t_str) -> str:
@@ -144,17 +147,17 @@ class Subtitles:
         items.append(SubtitleItem(current_words, self.language))
         return items
             
-    def toSRT(self, return_raw: bool = False, convert_numbers: bool = False) -> str:
+    def toSRT(self, return_raw: bool = False, convert_numbers: bool = False, user_sub: List[Tuple[str, str]] = []) -> str:
         output = ""
         i = 0
         for item in self.subtitleItems:
-            r, n = item.toSRT(i, return_raw=return_raw, convert_numbers=convert_numbers)
+            r, n = item.toSRT(i, return_raw=return_raw, convert_numbers=convert_numbers, user_sub=user_sub)
             output+= r 
             i+=n
         return output
 
-    def toVTT(self, return_raw: bool = False, convert_numbers: bool = False) -> str:
+    def toVTT(self, return_raw: bool = False, convert_numbers: bool = False, user_sub: List[Tuple[str, str]] = []) -> str:
         output = "WEBVTT Kind: captions; Language: {}\n\n".format(self.language)
         for item in self.subtitleItems:
-            output += item.toVTT(return_raw=return_raw, convert_numbers=convert_numbers)
+            output += item.toVTT(return_raw=return_raw, convert_numbers=convert_numbers, user_sub=user_sub)
         return output
