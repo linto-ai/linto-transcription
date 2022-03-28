@@ -112,7 +112,7 @@ def transcription_task(self, task_info: dict, file_path: str):
         diarJobId = celery.send_task(name="diarization_task",
                                      queue='diarization', 
                                      args=[file_name, 
-                                           config.diarizationConfig["numberOfSpeaker"], 
+                                           config.diarizationConfig["numberOfSpeaker"],
                                            config.diarizationConfig["maxNumberOfSpeaker"]])
         self.update_state(state="STARTED", meta=progress.toDict())
 

@@ -119,7 +119,7 @@ class TranscriptionResult:
     
     @property
     def final_transcription(self) -> str:
-        return " \n ".join([seg.toString(include_spkid=True) for seg in self.segments]).strip()
+        return " \n".join([seg.toString(include_spkid=True) for seg in self.segments]).strip()
     
     @property
     def raw_transcription(self) -> str:

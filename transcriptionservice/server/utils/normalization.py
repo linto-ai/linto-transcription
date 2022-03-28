@@ -20,7 +20,6 @@ def textToNum(text: str, language: str) -> str:
     return "\n".join([alpha2digit(elem, language[:2]) for elem in text.split("\n")])
 
 def cleanText(text: str, language: str, user_sub: list) -> str:
-    logger.debug(user_sub)
     clean_text = text
 
     # Basic substitutions
