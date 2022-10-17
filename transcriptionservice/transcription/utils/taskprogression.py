@@ -1,11 +1,13 @@
-from typing import List, Tuple
 from enum import Enum
+from typing import List, Tuple
+
 
 class StepState(str, Enum):
     PENDING = "pending"
     STARTED = "started"
     DONE = "done"
     FAILED = "failed"
+
 
 class StepProgression:
     def __init__(self, required: bool, initial_state: StepState = StepState.PENDING):
@@ -23,7 +25,7 @@ class StepProgression:
     @property
     def state(self) -> StepState:
         return self._state
-    
+
     @state.setter
     def state(self, state: StepState):
         self._state = state
@@ -32,10 +34,11 @@ class StepProgression:
         elif state == StepState.DONE:
             self.progress = 1.0
 
+
 class TaskProgression:
     def __init__(self, steps: List[Tuple[str, bool]]):
         self.steps = {name: StepProgression(required) for name, required in steps}
-        
+
     def toDict(self) -> dict:
         ret = {"steps": {}}
         for name, value in self.steps.items():

@@ -6,6 +6,26 @@ info:
 servers:
 - url: /
 paths:
+  /list-services:
+    get:
+      tags:
+      - Service Listing API
+      summary: List Available sub-services
+      responses:
+        200:
+          description: "List of available sub-services"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/subserviceList'
+        500:
+          description: "Server error"
+          content:
+            text/plain:
+              schema:
+                type: string
+                default: "The server encountered an unexpected error."
+
   /transcribe:
     post:
       tags:
@@ -163,14 +183,49 @@ paths:
         404:
           description: No ressource found for this id
 
+  /job-log/{jobid}:
+    get:
+      tags:
+      - Debug
+      summary: Display task logs.
+      parameters:
+        - name: jobid
+          in: path
+          required: true
+          description: Job ID
+          schema:
+            type: string
+      responses:
+        200:
+          description: "Logs for the specified taskid"
+          content:
+            text/plain:
+              schema:
+                type: string
+                default: "Task logs."
+        404:
+          description: "No logs found for specified taskid"
+          content:
+            text/plain:
+              schema:
+                type: string
+                default: "No logs found for task X"
+        500:
+          description: "Server error"
+          content:
+            text/plain:
+              schema:
+                type: string
+                default: "The server encountered an unexpected error."
+
 components:
   schemas:
     transcriptionConfig:
       type: object
       properties:
-        enablePunctuation:
-          type: boolean
-          default: false
+        punctuationConfig:
+          type: object
+          $ref: '#/components/schemas/punctuationConfig'
         diarizationConfig:
           type: object
           $ref: '#/components/schemas/diarizationConfig'
@@ -187,6 +242,63 @@ components:
         maxNumberOfSpeaker:
           type: integer
           default: null
+        serviceName:
+          type: string
+          default: null
+    
+    punctuationConfig:
+      type: object
+      properties:
+        enablePunctuation:
+          type: boolean
+          default: false
+        serviceName:
+          type: string
+          default: null
+
+    subserviceList:
+      type: object
+      properties:
+        serviceType:
+          type: object
+          default: "punctuation|diarization|..."
+          properties:
+            service_name: 
+              type: string
+            service_type:
+              type: string
+              default: "punctuation|diarization|..."
+            service_langugage:
+              type: string
+              default: "fr-fr|en-us|*|?|..."
+            queue_name:
+              type: string
+              default: "service_queue"
+            description:
+              type: string
+              default: "Service short description"
+            instances:
+              type: array
+              default: "Service short description"
+              items:
+                $ref: '#/components/schemas/service_instance'
+      
+    service_instance:
+      type: object
+      properties:
+        host_name: 
+          type: string
+        last_alive:
+          type: integer
+          default: 1
+        version:
+          type: string
+          default: "Service image versions"
+        concurrency:
+          type: integer
+          default: 1
+            
+    
     jobID:
       type: object
       properties:

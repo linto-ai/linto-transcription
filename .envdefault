@@ -4,6 +4,7 @@ LANGUAGE= # Language setting
 RESSOURCE_FOLDER= # (Shared) Folder where ressources are written
 KEEP_AUDIO=0 # Wether or not the audio file is kept after the request is answered
 CONCURRENCY=10 # Number of Gunicorn worker
+RESOLVE_POLICY=ANY
 
 #CELERY CONFIG
 SERVICES_BROKER= redis:// # Service broker uri

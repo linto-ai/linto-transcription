@@ -1,3 +1,12 @@
+# 1.2.0
+ - Added timestamp interpolation for non-consecutive diarization segments.
+ - Added Makefile for styling
+ - Refactored code to PEP8 (black)
+ - Reorganized repository folder structure.
+ - Added service discovery for subtasks
+ - Added service resolve and service resolve policy
+ - Added task logs and log query route
+ 
 # 1.1.2h1
  - Fixed convertnumber converting spk id 1
  - Fixed usersub not applied to subtitles
@@ -33,8 +42,8 @@
  - Added: Subtitling return format for VTT and SRT 
  - Added: Accept headers for subtitle formats
  - Added: jobid in result database
- - Added: fetch result in db using jobid
  - Changed: segment in TranscriptionResult will be equals to raw_segment in absence of postprocessing
+ - Added: fetch result in db using jobid
  - Moved: transcription related file to workers/utils
  - Updated: README
  - Removed: no longer used formating.py file

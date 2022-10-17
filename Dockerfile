@@ -12,6 +12,7 @@ COPY transcriptionservice /usr/src/app/transcriptionservice
 COPY docker-entrypoint.sh wait-for-it.sh ./
 COPY supervisor /usr/src/app/supervisor
 RUN mkdir -p /var/log/supervisor/
+RUN mkdir /usr/src/app/logs
 RUN chmod +x docker-entrypoint.sh wait-for-it.sh
 
 ENV PYTHONPATH="${PYTHONPATH}:/usr/src/app/transcriptionservice"

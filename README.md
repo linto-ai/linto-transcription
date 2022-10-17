@@ -3,26 +3,46 @@
 The transcription service is the API for requesting transcriptions.
 
 The service allows you to:
-* Request asynchronous transcriptions from a variety of audio or video files.
+* Request asynchronous transcriptions from a variety of audio or video files formats.
+* Specify transcription subtask such as diarization and punctuation.
 * Follow transcription task state and progress.
 * Automaticaly store transcription results in a database.
-* Fetch transcription results with different formats and options
+* Fetch transcription results with different formats and options.
 
-## Usage
-### Prerequisites
+## Table of content
+* [Prerequisites](#prerequisites)
+* [Deploy](#deploy)
+  * [Using docker run](#using-docker-run)
+  * [Using docker compose](#using-docker-compose)
+  * [Environement Variables](#environement-variables)
+* [API](#api)
+  * [/list-services](#environement-variables)
+  * [/transcribe](#transcribe)
+    * [Subservice resolution](#subservice-resolution)
+    * [Transcription config](#transcription-config)
+  * [/job/{jobid}](#job)
+  * [/results/{result_id}](#results)
+    * [Transcription results](#transcription-results)
+  * [/job-log/{jobid}](#job-log)
+  * [/docs](#docs)
+* [Usage](#usage)
+* [License](#license)
+***
+
+## Prerequisites
 To use the transcription service you must have at least:
 * One or multiple instances of [linto-platform-stt](https://github.com/linto-ai/linto-platform-stt) > 3.2.0 running and configured with the same `SERVICE_NAME`.
-* A message broker (like redis) running at `SERVICES_BROKER`.
+* A REDIS broker running at `SERVICES_BROKER`.
 * A mongo DB running at `MONGO_HOST:MONGO_PORT`.
 
 Optionnaly, for diarization or punctuation the following are needed:
-* One or multiple instances of [linto-diarization-worker](https://github.com/linto-ai/linto-platform-diarization) > 1.1.0 for speaker diarization configured on the same service broker.
-* One or multiple instances of [linto-punctuation-worker](https://github.com/linto-ai/linto-platform-punctuation) > 1.1.0 for text punctuation configured on the same service broker (LANGUAGE must be the same).
+* One or multiple instances of [linto-diarization-worker](https://github.com/linto-ai/linto-platform-diarization) > 1.2.0 for speaker diarization configured on the same service broker (LANGUAGE must be compatible).
+* One or multiple instances of [linto-punctuation-worker](https://github.com/linto-ai/linto-platform-punctuation) > 1.2.0 for text punctuation configured on the same service broker (LANGUAGE must be compatible).
 
 To share audio files across the different services they must be configured with the same shared volume `RESSOURCE_FOLDER`.
 
 ## Deploy
-### Using docker image
+### Using docker run
 1- First build the image:
 ```bash
 cd linto-platform-transcription-service &&
@@ -32,7 +52,7 @@ docker build . -t transcription_service
 ```bash
 cp .envdefault .env
 ```
-Fill the .env with the value described bellow [Environement Variables Configuration](#environement-variables-configuration)
+Fill the .env with the value described bellow [Environement Variables](#environement-variables)
 
 2- Launch a container:
 ```bash
@@ -45,7 +65,7 @@ docker run --rm -it -p $SERVING_PORT:80 \
 ```
 Fill ```SERVING_PORT```, ```YOUR_SHARED_FOLDER``` with your values.
 
-### Using docker-compose
+### Using docker compose
 1- Create and fill the .env
 ```bash
 cp .envdefault .env
@@ -57,7 +77,7 @@ Fill the .env with the value described bellow [Environement Variables Configurat
 docker-compose up .
 ```
 
-### Environement Variables Configuration
+### Environement Variables
 
 | Env variable| Description | Example |
 |:-|:-|:-|
@@ -72,6 +92,10 @@ docker-compose up .
 |MONGO_PORT|MongoDB results port|27017|
 |MONGO_USER|MongoDB user|user|
 |MONGO_PSWD|MongoDB pswd|pswd|
+|RESOLVE_POLICY| Subservice resolve policy (default ANY) * |ANY \| DEFAULT \| STRICT |
+|<SERVICE_TYPE>_DEFAULT| Default serviceName for subtask <SERVICE_TYPE> * | punctuation-1 |
+
+*: See [Subservice Resolution](#subservice-resolution)
 
 ## API
 The transcription service offers a transcription API REST to submit transcription requests.
@@ -85,6 +109,60 @@ Typical transcription process follows this steps:
 2. Use the ```/job/{job_id}``` route to follow the job's progress. When the job is finished, you'll be greated with a 201 alongside a result_id.
 3. Fetch the transcription result using the ```/results/{result_id}``` route specifying your desired format and options. 
 
+### /list-services
+The list-services GET route fetch available sub-services for transcription.
+
+It returns a json object containing list of deployed services indexed by service type. Services listed are filtered using the set LANGUAGE parameters.
+
+```json
+{
+  "diarization": [ # Service type
+    {
+      "service_name": "diarization-1", # Service name. Used as parameter in transcription config to call this specific service.
+      "service_type": "diarization", # Service type
+      "service_language": "*", # Supported language
+      "queue_name": "diarization-queue", # Celery queue used by this service
+      "info": "A diarization service", # Information about the service.
+      "instances": [ # Instances of this specific service.
+        {
+          "host_name": "feb42aacd8ad", # Instance unique id
+          "last_alive": 1665996709, # Last heartbeat
+          "version": "1.2.0", # Service version
+          "concurrency": 1 # Concurrency of the instance
+        }
+      ]
+    }
+  ],
+  "punctuation": [
+    {
+      "service_name": "punctuation-1",
+      "service_type": "punctuation",
+      "service_language": "fr-FR",
+      "queue_name": "punctuation-queue",
+      "info": "A punctuation service",
+      "instances": [
+        {
+          "host_name": "b0e9e24349a9",
+          "last_alive": 1665996709,
+          "version": "1.2.0",
+          "concurrency": 1
+        }
+      ]
+    }
+  ]
+}
+
+```
+__Language compatibily__
+
+A subservice is compatible if its language(s) is(are) compatible with the transcription-service language:
+
+transcription-service language <-> subservice language.
+* Same BCP-27 code: fr_Fr <-> fr_FR => OK
+* Language contained: fr_FR <-> fr_FR|it_IT|en_US => OK
+* Star token (all_language): fr_FR <-> * => OK
+
+
 ### /transcribe
 The /transcribe route allows POST request containing an audio file.
 
@@ -95,8 +173,7 @@ Response format can be application/json or text/plain as specified in the accept
 |Form Parameter| Description | Required |
 |:-|:-|:-|
 |transcriptionConfig|(object optionnal) A transcriptionConfig Object describing transcription parameters | See [Transcription config](#transcription-config) |
-|force_sync|(boolean optionnal) If True do a synchronous request | [true | **false** | null] |
-
+|force_sync|(boolean optionnal) If True do a synchronous request | [true \| **false** \| null] |
 
 If the request is accepted, answer should be ```201``` with a json or text response containing the jobid.
 
@@ -111,22 +188,41 @@ the-job-id
 
 If the **force_sync** flag is set to true, the request returns a ```200``` with the transcription (see [Transcription Results](#transcription-results)) using the same accept options as the /result/{result_id} route.  
 
-> The use of force_sync for big files is not recommended as it blocks a http worker for the duration of the transcription.
+> The use of force_sync for big files is not recommended as it blocks a worker for the duration of the transcription.
 
 #### Transcription config
 The transcriptionConfig object describe the transcription parameters and flags of the request. It is structured as follows:
 ```json
 {
-  "enablePunctuation": false, # Applies punctuation
+  "punctuationConfig": {
+    "enablePunctuation": false, # Applies punctuation
+    "serviceName": null # Force serviceName (See SubService resolution)
+  },
+  "enablePunctuation": false, # Applies punctuation (Do not use, kept for backward compatibility)
   "diarizationConfig": {
     "enableDiarization": false, #Enables speaker diarization
     "numberOfSpeaker": null, #If set, forces number of speaker
     "maxNumberOfSpeaker": null #If set and and numberOfSpeaker is not, limit the maximum number of speaker.
+    "serviceName": null # Force serviceName (See SubService Resolving)
   }
 }
 ```
 
-### /job/{jobid}
+ServiceNames can be filled to use a specific subservice version. Available services are available on /list-services.
+
+#### Subservice resolution
+Subservice resolution is the mecanism allowing the transcription service to use the proper optionnal subservice such as diarization or punctuation prediction. Resolution is applied when no serviceName is passed along subtask configs. 
+
+There is 3 policies to resolve service names:
+* ANY: Use any compatible subservice.
+* DEFAULT: Use the service default subservice (must be declared)
+* STRICT: If the service is not specified, raise an error.
+
+Resolve policy is declared at launch using the RESOLVE_POLICY environement variable: ANY | DEFAULT | STRICT (default ANY).
+
+Default service names must be declared at launch: <SERVICE_TYPE>_DEFAULT. E.g. The default punctuation subservice is "punctuation-1", `PUNCTUATION_DEFAULT=punctuation1`.
+
+### /job/
 
 The /job/{jobid} GET route allow you to get the state of the given transcription job.
 
@@ -153,8 +249,8 @@ Response format is application/json.
 }
 ```
 
-### /results/{result_id}
-The /results GET route allows you to fetch transcription result associated to a result_id.
+### /results/
+The /results/{result_id} GET route allows you to fetch transcription result associated to a result_id.
 
 #### Transcription results
 The accept header specifies the format of the result:
@@ -226,6 +322,9 @@ Additionnaly you can specify options using query string:
 * convert_number: if set to true, convert numbers from characters to digits.
 * wordsub: accepts multiple values formated as ```originalWord:substituteWord```. Substitute words in the final transcription.
 
+### /job-log/
+The /job-log/{jobid} GET route to is used retrieve job details for debugging. Returns logs as raw text.
+
 ### /docs
 The /docs route offers access to a swagger-ui interface with the API specifications (OAS3).
 
@@ -237,11 +336,15 @@ Request exemple:
 __Initial request__
 ```bash
 curl -X POST "http://MY_HOST:MY_PORT/transcribe" -H  "accept: application/json" -H  "Content-Type: multipart/form-data" -F 'transcriptionConfig={
-  "enablePunctuation": true,
+  "enablePunctuation": {
+    "enablepunctuation": true,
+    "servicename": null
+  },
   "diarizationConfig": {
     "enableDiarization": true,
     "numberOfSpeaker": null,
-    "maxNumberOfSpeaker": null
+    "maxNumberOfSpeaker": null,
+    "servicename": null
   }
 }' -F "force_sync=" -F "file=@MY_AUDIO.wav;type=audio/x-wav"
 
