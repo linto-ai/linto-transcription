@@ -3,21 +3,18 @@ import logging
 import os
 import time
 
-from transcriptionservice.server.mongodb.db_client import DBClient
-from transcriptionservice.transcription.utils.audio import splitFile, transcoding
 from transcriptionservice.broker.celeryapp import celery
-from transcriptionservice.transcription.configs.transcriptionconfig import (
-    TranscriptionConfig,
-)
-from transcriptionservice.transcription.utils.taskprogression import (
-    StepState,
-    TaskProgression,
-)
-from transcriptionservice.transcription.transcription_result import TranscriptionResult
+from transcriptionservice.server.mongodb.db_client import DBClient
+from transcriptionservice.transcription.configs.transcriptionconfig import \
+    TranscriptionConfig
+from transcriptionservice.transcription.transcription_result import \
+    TranscriptionResult
+from transcriptionservice.transcription.utils.audio import (
+    splitFile, splitUsingTimestamps, transcoding)
 from transcriptionservice.transcription.utils.serviceresolve import (
-    ResolveException,
-    ServiceResolver,
-)
+    ResolveException, ServiceResolver)
+from transcriptionservice.transcription.utils.taskprogression import (
+    StepState, TaskProgression)
 
 __all__ = ["transcription_task"]
 
@@ -44,6 +41,7 @@ def transcription_task(self, task_info: dict, file_path: str):
     - "service": Name of the transcription service
     - "hash": Audio File Hash
     - "keep_audio": If False, the audio file is deleted after the task.
+    - "timestamps" : (Optionnal) Audio spliting timestamps
     """
     # Logging task
     logging.basicConfig(
@@ -60,6 +58,12 @@ def transcription_task(self, task_info: dict, file_path: str):
     self.update_state(state="STARTED", meta={"steps": {}})
 
     config = TranscriptionConfig(task_info["transcription_config"])
+
+    # Disable diarization if timestamps are uploaded
+    if task_info["timestamps"]:
+        config.diarizationConfig.isEnabled = False
+        logging.debug("Disabling diarization due to timestamps information")
+
     logging.info(config)
 
     # Resolve required task queues
@@ -95,7 +99,11 @@ def transcription_task(self, task_info: dict, file_path: str):
 
     # Check for available transcription
     logging.info(f"Checking for available transcription")
-    available_transcription = db_client.fetch_transcription(task_info["hash"])
+
+    if not task_info["timestamps"]:
+        available_transcription = db_client.fetch_transcription(task_info["hash"])
+    else:
+        available_transcription = None
 
     if available_transcription:
         logging.info("Transcription result already available")
@@ -107,13 +115,18 @@ def transcription_task(self, task_info: dict, file_path: str):
         except Exception as e:
             logging.warning("Failed to fetch transcription: {}".format(str(e)))
             available_transcription = None
-
     self.update_state(state="STARTED", meta=progress.toDict())
 
     if available_transcription is None:
         # Split using VAD
-        progress.steps["transcription"].state = StepState.STARTED
-        subfiles, total_duration = splitFile(file_name)
+        if not task_info["timestamps"]:
+            logging.info(f"Spliting using VAD ...")
+            subfiles, total_duration = splitFile(file_name)
+
+        else:
+            logging.info(f"Split using provided timestamps ...")
+            subfiles, total_duration = splitUsingTimestamps(file_name, task_info["timestamps"])
+
         logging.info(f"Input file has been split into {len(subfiles)} subfiles")
 
         # Progress monitoring
@@ -177,7 +190,12 @@ def transcription_task(self, task_info: dict, file_path: str):
             raise Exception("Transcription has failed: {}".format(transcription))
 
         # Merge Transcription results
-        transcription_result = TranscriptionResult(transcriptions)
+        if task_info["timestamps"]:
+            transcription_result = TranscriptionResult(
+                transcriptions, [x["spk_id"] for x in task_info["timestamps"]]
+            )
+        else:
+            transcription_result = TranscriptionResult(transcriptions)
 
         # Save transcription in DB
         try:
@@ -195,7 +213,7 @@ def transcription_task(self, task_info: dict, file_path: str):
             raise Exception("Diarization has failed: {}".format(speakers))
         else:
             transcription_result.setDiarizationResult(speakers)
-    else:
+    elif not task_info["timestamps"]:
         transcription_result.setNoDiarization()
 
     # Punctuation

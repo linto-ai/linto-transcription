@@ -1,16 +1,19 @@
-version: '3.5'
+version: '3.7'
 
 services:
   transcription-service:
-    build: .
-    container_name: ${SERVICE_NAME}_transcription_service
-    image: linto-platform-transcription-service:latest
+    image: transcription_service:1.2.0
     volumes:
-      - ${RESSOURCE_FOLDER}:/opt/audio
+      - $SHARED_FOLDER/audio:/opt/audio
     env_file: .env
     ports:
-      - target: 80
-        published: ${TRANSCRIPTION_API_PORT}
-    expose: 
-      - "80"
-  
+      - "$SERVINGPORT:80"
+    networks:
+      - transcription-net
+
+networks:
+  transcription-net:
+    external: true
+
+
+

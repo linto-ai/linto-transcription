@@ -6,6 +6,7 @@
  - Added service discovery for subtasks
  - Added service resolve and service resolve policy
  - Added task logs and log query route
+ - Added possibility to upload a timestamps file.
  
 # 1.1.2h1
  - Fixed convertnumber converting spk id 1

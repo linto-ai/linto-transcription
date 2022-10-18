@@ -2,7 +2,8 @@ import os
 from typing import List, Tuple, Union
 
 from transcriptionservice.server.formating.subtitling import Subtitles
-from transcriptionservice.transcription.transcription_result import TranscriptionResult
+from transcriptionservice.transcription.transcription_result import \
+    TranscriptionResult
 
 from .normalization import cleanText, textToNum
 

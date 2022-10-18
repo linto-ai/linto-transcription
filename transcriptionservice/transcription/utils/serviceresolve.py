@@ -3,7 +3,8 @@
 import logging
 import os
 
-from transcriptionservice.broker.discovery import SERVICE_TYPES, list_available_services
+from transcriptionservice.broker.discovery import (SERVICE_TYPES,
+                                                   list_available_services)
 
 
 class ResolveException(Exception):
@@ -13,9 +14,10 @@ class ResolveException(Exception):
         self.message = message
         super().__init__(self.message)
 
+
 class NoServiceSpecified(ResolveException):
-    """ Exception raised in STRICT mode when no service is specified """
-    
+    """Exception raised in STRICT mode when no service is specified"""
+
     def __init__(self, service_type: str) -> None:
         self.message = f"No service name provided for {service_type}. Not specifying serviceName in STRICT mode will raise an error."
         logging.error(self.message)
@@ -84,7 +86,9 @@ class ServicePolicy:
             str: Environement defined resolve policy (default ANY)
         """
         env_policy = os.environ.get("RESOLVE_POLICY", "any").lower()
-        return {"default": cls.DEFAULT, "any": cls.ANY, "strict": cls.STRICT}.get(env_policy, cls.ANY)
+        return {"default": cls.DEFAULT, "any": cls.ANY, "strict": cls.STRICT}.get(
+            env_policy, cls.ANY
+        )
 
 
 class ServiceResolver:

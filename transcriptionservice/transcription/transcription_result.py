@@ -68,15 +68,17 @@ class SpeechSegment:
 class TranscriptionResult:
     """Transcription result manages transcription results, post-processing and formating for transcription results."""
 
-    def __init__(self, transcriptions: List[Tuple[dict, float]]):
+    def __init__(self, transcriptions: List[Tuple[dict, float]], spk_ids: list = None):
         """Initialisation accepts list of tuple (transcription, time_offset)"""
         self.transcription_confidence = 0.0
         self.words = []
         self.segments = []
         if transcriptions:
-            self._mergeTranscription(transcriptions)
+            self._mergeTranscription(transcriptions, spk_ids)
 
-    def _mergeTranscription(self, transcriptions: List[Tuple[dict, float]]):
+    def _mergeTranscription(
+        self, transcriptions: List[Tuple[dict, float]], spk_ids: list = None
+    ) -> None:
         """Merges transcription results applying offsets"""
         for transcription, offset in transcriptions:
             for w in transcription["words"]:
@@ -86,6 +88,16 @@ class TranscriptionResult:
             self.transcription_confidence += transcription["confidence-score"]
         self.transcription_confidence /= len(transcriptions)
         self.words.sort(key=lambda x: x.start)
+
+        if spk_ids:
+            for (transcription, offset), id in zip(transcriptions, spk_ids):
+                seg_words = []
+                for w in transcription["words"]:
+                    word = Word(**w)
+                    word.apply_offset(offset)
+                    seg_words.append(word)
+                if seg_words:
+                    self.segments.append(SpeechSegment(id, seg_words))
 
     def setTranscription(self, words: List[dict]):
         for w in words:

@@ -4,10 +4,10 @@ from uuid import uuid4
 
 from pymongo import MongoClient, errors
 
-from transcriptionservice.transcription.configs.transcriptionconfig import (
-    TranscriptionConfig,
-)
-from transcriptionservice.transcription.transcription_result import TranscriptionResult
+from transcriptionservice.transcription.configs.transcriptionconfig import \
+    TranscriptionConfig
+from transcriptionservice.transcription.transcription_result import \
+    TranscriptionResult
 
 """ The Databases is structured as follows:
 

@@ -40,6 +40,9 @@ paths:
                 file:
                   type: string
                   format: binary
+                timestamps:
+                  type: string
+                  format: binary
                 transcriptionConfig:
                   type: object
                   $ref: '#/components/schemas/transcriptionConfig'

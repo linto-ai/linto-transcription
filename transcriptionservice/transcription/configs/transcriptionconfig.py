@@ -3,9 +3,7 @@ from typing import Union
 
 from transcriptionservice.transcription.configs.sharedconfig import Config
 from transcriptionservice.transcription.configs.taskconfig import (
-    DiarizationConfig,
-    PunctuationConfig,
-)
+    DiarizationConfig, PunctuationConfig)
 
 
 class TranscriptionConfig(Config):

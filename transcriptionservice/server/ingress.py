@@ -8,18 +8,19 @@ from celery.result import states as task_states
 from flask import Flask, json, request
 
 from transcriptionservice import logger
+from transcriptionservice.broker.discovery import list_available_services
 from transcriptionservice.server.confparser import createParser
+from transcriptionservice.server.formating import formatResult
 from transcriptionservice.server.mongodb.db_client import DBClient
 from transcriptionservice.server.serving import GunicornServing
 from transcriptionservice.server.swagger import setupSwaggerUI
-from transcriptionservice.server.utils import fileHash, requestlog
-from transcriptionservice.server.formating import formatResult
+from transcriptionservice.server.utils import (fileHash, read_timestamps,
+                                               requestlog)
 from transcriptionservice.server.utils.ressources import write_ressource
-from transcriptionservice.transcription.configs.transcriptionconfig import (
-    TranscriptionConfig,
-)
-from transcriptionservice.broker.discovery import list_available_services
-from transcriptionservice.transcription.transcription_task import transcription_task
+from transcriptionservice.transcription.configs.transcriptionconfig import \
+    TranscriptionConfig
+from transcriptionservice.transcription.transcription_task import \
+    transcription_task
 
 AUDIO_FOLDER = "/opt/audio"
 SUPPORTED_HEADER_FORMAT = ["text/plain", "application/json", "text/vtt", "text/srt"]
@@ -124,10 +125,19 @@ def transcription():
             "Received multiple files at once. Multifile is not supported yet, n>1 file are ignored"
         )
 
+    # Files
+    ## Audio file
     file_key = list(request.files.keys())[0]
     file_buffer = request.files[file_key].read()
     extension = request.files[file_key].filename.split(".")[-1]
     file_hash = fileHash(file_buffer)
+
+    # Timestamps file
+    if "timestamps" in request.files.keys():
+        timestamps_buffer = request.files["timestamps"].read()
+        timestamps = read_timestamps(timestamps_buffer)
+    else:
+        timestamps = None
 
     # Header check
     expected_format = request.headers.get("accept")
@@ -169,6 +179,7 @@ def transcription():
         "service_name": config.service_name,
         "hash": file_hash,
         "keep_audio": config.keep_audio,
+        "timestamps": timestamps,
     }
 
     task = transcription_task.apply_async(

@@ -1,6 +1,6 @@
 import os
 import subprocess
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 import wavio
@@ -53,7 +53,7 @@ def vadCutIndexes(
     sample_rate,
     chunk_length: float = 0.03,
     mode: int = 1,
-    min_silence_frame: int = 10,
+    min_silence_frame: int = 20,
 ):
     """Apply VAD on the signal and returns cut indexes located between speech segments"""
     vad = webrtcvad.Vad()
@@ -115,3 +115,35 @@ def splitFile(file_path, min_length: int = 10) -> Tuple[List[Tuple[str, float, f
         subfiles.append((subfile_path, offset, stop - start))
         i += 1
     return subfiles, len(audio)
+
+
+def splitUsingTimestamps(
+    file_path: str, timestamps: List[Dict]
+) -> Tuple[List[Tuple[str, float, float]], float]:
+    """Split using a list of timestamps
+
+    Args:
+        file_path (str): Audiofile
+        timestamps (List[Dict]): A list of timesample {"start": float, "end": float, "id": any}
+
+    Returns:
+        Tuple[List[Tuple[str, float, float]], float]: ([(subfile_name, start, stop),], total_duration)
+    """
+    timestamps = sorted(timestamps, key=lambda x: x["start"])
+    content = wavio.read(file_path)
+    sr = content.rate
+    audio = np.squeeze(content.data)
+    basename = ".".join(file_path.split(".")[:-1])
+    # Create subfiles
+    subfiles = []
+    total_duration = 0.0
+    for i, seg in enumerate(timestamps):
+        subfile_path = f"{basename}_{i}.wav"
+        offset = seg["start"]
+        start = int(seg["start"] * sr)
+        stop = int(seg["end"] * sr)
+        wavio.write(subfile_path, audio[start:stop], sr)
+        subfiles.append((subfile_path, offset, seg["end"] - seg["start"]))
+        total_duration += seg["end"] - seg["start"]
+
+    return subfiles, total_duration

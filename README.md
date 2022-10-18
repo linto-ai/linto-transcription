@@ -190,6 +190,13 @@ If the **force_sync** flag is set to true, the request returns a ```200``` with 
 
 > The use of force_sync for big files is not recommended as it blocks a worker for the duration of the transcription.
 
+Additionnaly a timestamps file can be uploaded alongside the audio file containing segments timestamps to transcribe. Timestamps file are text file containing a segment per line with optionnal speakerid such as:
+```txt
+# start stop [speakerid]
+0.0 7.05 1
+7.05 13.0
+```
+
 #### Transcription config
 The transcriptionConfig object describe the transcription parameters and flags of the request. It is structured as follows:
 ```json

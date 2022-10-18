@@ -2,10 +2,7 @@ import time
 from typing import List, Tuple
 
 from transcriptionservice.transcription.transcription_result import (
-    SpeechSegment,
-    TranscriptionResult,
-    Word,
-)
+    SpeechSegment, TranscriptionResult, Word)
 
 from .normalization import cleanText, textToNum
 
