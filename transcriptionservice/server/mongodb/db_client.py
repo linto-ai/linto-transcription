@@ -55,6 +55,7 @@ class DBClient:
         )
         self.transcriptions_collection = self.client[db_info["db_name"]][db_info["service_name"]]
         self.results_collection = self.client[db_info["db_name"]]["results"]
+        self.isset = True
 
     @mongo_error_handler
     def fetch_transcription(self, file_hash: str) -> dict:
