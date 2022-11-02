@@ -70,7 +70,7 @@ Fill ```SERVING_PORT```, ```YOUR_SHARED_FOLDER``` with your values.
 ```bash
 cp .envdefault .env
 ```
-Fill the .env with the value described bellow [Environement Variables Configuration](#environement-variables-configuration)
+Fill the .env with the value described bellow [Environement Variables](#environement-variables)
 
 2- Compose
 ```bash
@@ -83,7 +83,6 @@ docker-compose up .
 |:-|:-|:-|
 |SERVICE_NAME| STT service name, use to connect to the proper redis channel and mongo collection|my_stt_service|
 |LANGUAGE| Language code as a BCP-47 code | fr_FR |
-|RESSOURCE_FOLDER|Shared folder (host)|~/linto_shared_mount/|
 |KEEP_AUDIO|Either audio files are kept after request|1 (true) / 0 (false)|
 |CONCURRENCY|Number of workers (default 10)|10|
 |SERVICES_BROKER|Message broker address|redis://broker_address:6379|

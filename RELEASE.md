@@ -1,3 +1,7 @@
+# 1.2.1
+ - Added Bearer Authentication to swagger.
+ - Updated README.
+
 # 1.2.0
  - Added timestamp interpolation for non-consecutive diarization segments.
  - Added Makefile for styling

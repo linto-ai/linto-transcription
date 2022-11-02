@@ -2,9 +2,14 @@ openapi: 3.0.1
 info:
   title: Transcription service
   description: Transcription request interface
-  version: 1.0.0
+  version: 1.2.1
+
 servers:
 - url: /
+
+security:
+  - bearerAuth: []
+
 paths:
   /list-services:
     get:
@@ -222,6 +227,11 @@ paths:
                 default: "The server encountered an unexpected error."
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     transcriptionConfig:
       type: object
