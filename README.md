@@ -89,8 +89,6 @@ docker-compose up .
 |BROKER_PASS|Broker Password| Password|
 |MONGO_HOST|MongoDB results url|my-mongo-service|
 |MONGO_PORT|MongoDB results port|27017|
-|MONGO_USER|MongoDB user|user|
-|MONGO_PSWD|MongoDB pswd|pswd|
 |RESOLVE_POLICY| Subservice resolve policy (default ANY) * |ANY \| DEFAULT \| STRICT |
 |<SERVICE_TYPE>_DEFAULT| Default serviceName for subtask <SERVICE_TYPE> * | punctuation-1 |
 
