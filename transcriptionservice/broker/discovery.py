@@ -3,6 +3,8 @@ import json
 import os
 
 import redis
+from redis.commands.search.field import NumericField, TextField
+from redis.commands.search.indexDefinition import IndexDefinition, IndexType
 
 from transcriptionservice.broker.celeryapp import celery
 
@@ -38,6 +40,32 @@ def list_available_services(ensure_alive: bool = False, as_json: bool = False) -
 
     if ensure_alive:
         worker_names = set(k.split("@")[1] for k in celery.control.inspect().active_queues().keys())
+
+    # Handle indexdrop
+    # Tries to restore the service index if it has been dropped.
+    try:
+        service_l_doc = redis_client.ft().search("*").docs
+    except Exception as error:
+        print("Service index has been dropped. Attempting to restore ...")
+        schema = (
+            TextField("$.service_name", as_name="service_name"),
+            TextField("$.service_type", as_name="service_type"),
+            TextField("$.service_language", as_name="service_language"),
+            TextField("$.queue_name", as_name="queue_name"),
+            TextField("$.version", as_name="version"),
+            TextField("$.info", as_name="info"),
+            NumericField("$.last_alive", as_name="last_alive"),
+            NumericField("$.concurrency", as_name="concurrency"),
+        )
+        try:
+            redis_client.ft().create_index(
+                schema,
+                definition=IndexDefinition(prefix=["service:"], index_type=IndexType.JSON),
+            )
+            service_l_doc = redis_client.ft().search("*").docs
+        except Exception:
+            raise Exception("Service Index has been drop and restore attempt failed.")
+        print("Index successfully restored")
 
     # Listing services
     for service_type in SERVICE_TYPES:
