@@ -1,5 +1,6 @@
 # 1.2.2
- - 
+ - Added recover to redis search index drop.
+
 # 1.2.1
  - Added Bearer Authentication to swagger.
  - Updated README.
