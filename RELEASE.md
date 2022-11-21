@@ -1,3 +1,9 @@
+# 1.2.3
+ - Added multifiles route and processing.
+ - Changed straddling word diarization resolve
+ - Added diarization results within transcription result.
+ 
+
 # 1.2.2
  - Added recover to redis search index drop.
 

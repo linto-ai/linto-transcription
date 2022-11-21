@@ -1,8 +1,8 @@
-openapi: 3.0.1
+openapi: 3.0.3
 info:
   title: Transcription service
   description: Transcription request interface
-  version: 1.2.1
+  version: 1.2.3
 
 servers:
 - url: /
@@ -54,6 +54,65 @@ paths:
                 force_sync:
                   type: boolean
                   default: false
+      responses:
+        200:
+          description: "Job successfully finished (force_sync)"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/transcriptionResult'
+            text/plain:
+              schema:
+                type: string
+                default: This is a transcription
+            text/vtt:
+              schema:
+                type: string
+                default: Return the transcription as VTT subtitles.
+            text/srt:
+              schema:
+                type: string
+                default: Return the transcription as SRT subtitles.
+        201:
+          description: Successfully created transcription job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/jobID'
+        400:
+          description: "Bad request"
+          content:
+            text/plain:
+              schema:
+                type: string
+                default: "Bad header / Bad parameters / No file attached"
+        500:
+          description: "Server error"
+          content:
+            text/plain:
+              schema:
+                type: string
+                default: "The server encountered an unexpected error."
+
+  /transcribe-multi:
+    post:
+      tags:
+      - Speech-To-Text API
+      summary: Perform Speech-to-Text for multiple files
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                multiTranscriptionConfig:
+                  type: object
+                  $ref: '#/components/schemas/multiTranscriptionConfig'
       responses:
         200:
           description: "Job successfully finished (force_sync)"
@@ -242,6 +301,12 @@ components:
         diarizationConfig:
           type: object
           $ref: '#/components/schemas/diarizationConfig'
+    multiTranscriptionConfig:
+      type: object
+      properties:
+        punctuationConfig:
+          type: object
+          $ref: '#/components/schemas/punctuationConfig'
 
     diarizationConfig:
       type: object

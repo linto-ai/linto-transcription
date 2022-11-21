@@ -1,11 +1,13 @@
 """The transcription_result module holds classes responsible for holding, merging and formating transcription results."""
 import json
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Any
 
 
 @dataclass
 class Word:
+    """Contains word informations"""
+
     word: str
     start: float
     end: float
@@ -21,6 +23,20 @@ class Word:
 
 
 @dataclass
+class DiarizationSegment:
+    """Contain diarization segment information"""
+
+    seg_begin: float
+    seg_end: float
+    spk_id: Any
+    seg_id: int
+
+    @property
+    def json(self) -> dict:
+        return self.__dict__
+
+
+@dataclass
 class SpeechSegment:
     speaker_id: str = None
     words: list = field(default_factory=list)
@@ -28,10 +44,14 @@ class SpeechSegment:
 
     def toString(self, include_spkid: bool = False, spk_sep: str = ":"):
         output = (
-            f"{self.speaker_id}{spk_sep} " if include_spkid and self.speaker_id is not None else ""
+            f"{self.speaker_id}{spk_sep} "
+            if include_spkid and self.speaker_id is not None
+            else ""
         )
         return output + (
-            self.raw_segment if self.processed_segment is None else self.processed_segment
+            self.raw_segment
+            if self.processed_segment is None
+            else self.processed_segment
         )
 
     @property
@@ -73,6 +93,7 @@ class TranscriptionResult:
         self.transcription_confidence = 0.0
         self.words = []
         self.segments = []
+        self.diarizationSegments = []
         if transcriptions:
             self._mergeTranscription(transcriptions, spk_ids)
 
@@ -98,51 +119,87 @@ class TranscriptionResult:
                     seg_words.append(word)
                 if seg_words:
                     self.segments.append(SpeechSegment(id, seg_words))
+            self.segments = sorted(self.segments, key=lambda seg: seg.start)
 
     def setTranscription(self, words: List[dict]):
         for w in words:
             self.words.append(Word(**w))
-        self.transcription_confidence = sum([w.conf for w in self.words]) / len(self.words)
+        self.transcription_confidence = sum([w.conf for w in self.words]) / len(
+            self.words
+        )
 
     def setDiarizationResult(self, diarizationResult: Union[str, dict]):
-        """Convert word data into speech segments using diarization data"""
+        """Create speech segments using word and diarization data"""
         diarization_data = (
             json.loads(diarizationResult)
             if isinstance(diarizationResult, str)
             else diarizationResult
         )
-        self.words.sort(key=lambda x: x.start)
+        self.diarizationSegments = [
+            DiarizationSegment(**segment)
+            for segment in sorted(
+                diarization_data["segments"], key=lambda x: x["seg_begin"]
+            )
+        ]
 
-        segments = sorted(diarization_data["segments"], key=lambda x: x["seg_begin"])
+        self.words.sort(key=lambda x: x.start)
 
         # Interpolates speaker change timestamps
         # Starts the first segment at 0.0, ends the last segment at max(word.ends)
         # If two consecutive diarization segments are not joint, find the middle point
-        segments[0]["seg_begin"] = 0.0
-        segments[-1]["seg_end"] = max(segments[-1]["seg_end"], self.words[-1].end)
-        for first_segment, second_segment in zip(segments[1:-2], segments[2:-1]):
-            if first_segment["seg_end"] != second_segment["seg_begin"]:
+        self.diarizationSegments[0].seg_begin = 0.0
+        self.diarizationSegments[-1].seg_end = max(
+            self.diarizationSegments[-1].seg_end, self.words[-1].end
+        )
+        for first_segment, second_segment in zip(
+            self.diarizationSegments[1:-2], self.diarizationSegments[2:-1]
+        ):
+            if first_segment.seg_end != second_segment.seg_begin:
                 middle_point = (
-                    first_segment["seg_end"]
-                    + (second_segment["seg_begin"] - first_segment["seg_end"]) / 2
+                    first_segment.seg_end
+                    + (second_segment.seg_begin - first_segment.seg_end) / 2
                 )
-                first_segment["seg_end"] = second_segment["seg_begin"] = middle_point
+                first_segment.seg_end = second_segment.seg_begin = middle_point
 
-        spk_index = 0
-        current_id = segments[spk_index]["spk_id"]
+        seg_index = 0
+        current_id = self.diarizationSegments[seg_index].spk_id
         current_words = []
 
-        for word in self.words:
-            if word.start > segments[spk_index]["seg_end"]:  # Next segment
-                if len(current_words):
+        # Iterate over segments and words to create speech segments
+        for i, word in enumerate(self.words):
+            if not self._resolveWordSegment(i, self.diarizationSegments[seg_index]):
+                # Next segment
+                if len(current_words):  # Check that words contains something
                     self.segments.append(SpeechSegment(current_id, current_words))
-                if spk_index + 1 < len(segments):
-                    spk_index += 1
-                current_id = segments[spk_index]["spk_id"]
+                if seg_index + 1 < len(self.diarizationSegments):
+                    seg_index += 1
+                current_id = self.diarizationSegments[seg_index].spk_id
                 current_words = []
             current_words.append(word)
         if len(current_words):
             self.segments.append(SpeechSegment(current_id, current_words))
+
+    def _resolveWordSegment(
+        self, word_index: int, current_diarization_seg: dict
+    ) -> bool:
+        """Applies word placement rules and decides if the word belong to the current_segment (True) or to the next (false)"""
+        # Word completly within current segment
+        if self.words[word_index].end <= current_diarization_seg.seg_end:
+            return True
+        # Word complely outside current segment
+        if self.words[word_index].start >= current_diarization_seg.seg_end:
+            return False
+        # Word straddling two segments
+        if not word_index:
+            return False
+        if word_index == len(self.words) - 1:
+            return True
+        if (
+            self.words[word_index].start - self.words[word_index - 1].end
+            <= self.words[word_index + 1].start - self.words[word_index].end
+        ):
+            return True
+        return False
 
     def setNoDiarization(self):
         """Convert word data into a speech segment when there is no diarization"""
@@ -157,7 +214,9 @@ class TranscriptionResult:
 
     @property
     def final_transcription(self) -> str:
-        return " \n".join([seg.toString(include_spkid=True) for seg in self.segments]).strip()
+        return " \n".join(
+            [seg.toString(include_spkid=True) for seg in self.segments]
+        ).strip()
 
     @property
     def raw_transcription(self) -> str:
@@ -170,18 +229,28 @@ class TranscriptionResult:
 
     @classmethod
     def fromDict(cls, resultDict: dict):
+        """Create TranscriptionResult from dictionnary"""
         result = TranscriptionResult(None)
         result.transcription_confidence = resultDict["confidence"]
         for segment in resultDict["segments"]:
-            seg = SpeechSegment(segment["spk_id"], [Word(**w) for w in segment["words"]])
+            seg = SpeechSegment(
+                segment["spk_id"], [Word(**w) for w in segment["words"]]
+            )
             seg.processed_segment = segment["segment"]
             result.segments.append(seg)
+
+        result.diarizationSegments = [
+            DiarizationSegment(**diarizationSegment)
+            for diarizationSegment in resultDict["diarization_segments"]
+        ]
+
         return result
 
     def final_result(self) -> dict:
-        result = dict()
-        result["transcription_result"] = self.final_transcription
-        result["raw_transcription"] = self.raw_transcription
-        result["confidence"] = self.transcription_confidence
-        result["segments"] = [s.json for s in self.segments]
-        return result
+        return {
+            "transcription_result": self.final_transcription,
+            "raw_transcription": self.raw_transcription,
+            "confidence": self.transcription_confidence,
+            "segments": [s.json for s in self.segments],
+            "diarization_segments": [seg.json for seg in self.diarizationSegments],
+        }

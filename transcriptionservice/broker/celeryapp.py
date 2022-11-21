@@ -2,7 +2,9 @@ import os
 
 from celery import Celery
 
-celery = Celery(__name__, include=["transcriptionservice.transcription.transcription_task"])
+celery = Celery(
+    __name__, include=["transcriptionservice.transcription.transcription_task"]
+)
 service_name = os.environ.get("SERVICE_NAME", "stt")
 broker_url = os.environ.get("SERVICES_BROKER", "redis://localhost:6379")
 if os.environ.get("BROKER_PASS", False):
@@ -18,6 +20,7 @@ celery.conf.update(
     {
         "task_routes": {
             "transcription_task": {"queue": "{}_requests".format(service_name)},
+            "transcription_task_multi": {"queue": "{}_requests".format(service_name)},
         }
     }
 )

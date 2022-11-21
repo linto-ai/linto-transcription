@@ -14,13 +14,16 @@ from transcriptionservice.server.formating import formatResult
 from transcriptionservice.server.mongodb.db_client import DBClient
 from transcriptionservice.server.serving import GunicornServing
 from transcriptionservice.server.swagger import setupSwaggerUI
-from transcriptionservice.server.utils import (fileHash, read_timestamps,
-                                               requestlog)
+from transcriptionservice.server.utils import fileHash, read_timestamps, requestlog
 from transcriptionservice.server.utils.ressources import write_ressource
-from transcriptionservice.transcription.configs.transcriptionconfig import \
-    TranscriptionConfig
-from transcriptionservice.transcription.transcription_task import \
-    transcription_task
+from transcriptionservice.transcription.configs.transcriptionconfig import (
+    TranscriptionConfig,
+    TranscriptionConfigMulti,
+)
+from transcriptionservice.transcription.transcription_task import (
+    transcription_task,
+    transcription_task_multi,
+)
 
 AUDIO_FOLDER = "/opt/audio"
 SUPPORTED_HEADER_FORMAT = ["text/plain", "application/json", "text/vtt", "text/srt"]
@@ -96,7 +99,9 @@ def results(result_id):
     sub_list = request.args.getlist("wordsub", None)
     try:
         sub_list = [
-            tuple(elem.split(":")) for elem in sub_list if elem.strip() != "" and ":" in elem
+            tuple(elem.split(":"))
+            for elem in sub_list
+            if elem.strip() != "" and ":" in elem
         ]
     except:
         logger.warning("Could not parse substitution items: {}".format(sub_list))
@@ -112,6 +117,74 @@ def results(result_id):
         ),
         200,
     )
+
+
+@app.route("/transcribe-multi", methods=["POST"])
+def transcription_multi():
+    """Route for multiple audio file transcription"""
+
+    files = request.files.getlist("file")
+    if not len(files):
+        return "Not file attached to request", 400
+
+    if len(files) == 1:
+        return "For single file transcription, use the /transcribe route", 400
+
+    # Header check
+    expected_format = request.headers.get("accept")
+    if not expected_format in SUPPORTED_HEADER_FORMAT:
+        return (
+            "Accept format {} not supported. Supported MIME types are :{}".format(
+                expected_format, " ".join(SUPPORTED_HEADER_FORMAT)
+            ),
+            400,
+        )
+
+    # Files
+    audios = []
+    for audio_file in files:
+        file_buffer = audio_file.read()
+        file_hash = fileHash(file_buffer)
+        file_ext = audio_file.filename.split(".")[-1]
+        try:
+            file_path = write_ressource(file_buffer, file_hash, AUDIO_FOLDER, file_ext)
+        except Exception as e:
+            logger.error("Failed to write ressource: {}".format(e))
+            return "Server Error: Failed to write ressource", 500
+        audios.append(
+            {
+                "filename": audio_file.filename,
+                "hash": file_hash,
+                "file_path": file_path,
+            }
+        )
+    # Parse transcription config
+    try:
+        transcription_config = TranscriptionConfigMulti(
+            request.form.get("transcriptionConfig", {})
+        )
+        logger.debug(transcription_config)
+    except Exception:
+        logger.debug(request.form.get("transcriptionConfig", {}))
+        return "Failed to interpret transcription config", 400
+
+    # Task info
+    task_info = {
+        "transcription_config": transcription_config.toJson(),
+        "service_name": config.service_name,
+        "hash": file_hash,
+        "keep_audio": config.keep_audio,
+    }
+
+    task = transcription_task_multi.apply_async(
+        queue=config.service_name + "_requests", args=[task_info, audios]
+    )
+    logger.debug(f"Create trancription task with id {task.id}")
+    return (
+        json.dumps({"jobid": task.id})
+        if expected_format == "application/json"
+        else task.id
+    ), 201
 
 
 @app.route("/transcribe", methods=["POST"])
@@ -156,7 +229,9 @@ def transcription():
 
     # Parse transcription config
     try:
-        transcription_config = TranscriptionConfig(request.form.get("transcriptionConfig", {}))
+        transcription_config = TranscriptionConfig(
+            request.form.get("transcriptionConfig", {})
+        )
         logger.debug(transcription_config)
     except Exception:
         logger.debug(request.form.get("transcriptionConfig", {}))
@@ -164,7 +239,6 @@ def transcription():
 
     requestlog(logger, request.remote_addr, transcription_config, file_hash, False)
 
-    # If no previous result
     # Create ressource
     try:
         file_path = write_ressource(file_buffer, file_hash, AUDIO_FOLDER, extension)
@@ -197,7 +271,9 @@ def transcription():
             return json.dumps({"state": "failed", "reason": str(task.result)}), 400
 
     return (
-        json.dumps({"jobid": task.id}) if expected_format == "application/json" else task.id
+        json.dumps({"jobid": task.id})
+        if expected_format == "application/json"
+        else task.id
     ), 201
 
 
