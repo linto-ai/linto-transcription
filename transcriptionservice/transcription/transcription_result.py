@@ -135,12 +135,18 @@ class TranscriptionResult:
             if isinstance(diarizationResult, str)
             else diarizationResult
         )
+
+        # Get segments ordered by start time
         self.diarizationSegments = [
             DiarizationSegment(**segment)
             for segment in sorted(
                 diarization_data["segments"], key=lambda x: x["seg_begin"]
             )
         ]
+
+        # Filter out segments that are included in others (i.e. which end before previous segment)
+        self.diarizationSegments = [self.diarizationSegments[i] for i in range(len(self.diarizationSegments)) \
+            if i == 0 or self.diarizationSegments[i].seg_end > self.diarizationSegments[i-1].seg_end]
 
         self.words.sort(key=lambda x: x.start)
 
@@ -154,6 +160,7 @@ class TranscriptionResult:
         for first_segment, second_segment in zip(
             self.diarizationSegments[:-1], self.diarizationSegments[1:]
         ):
+            # When there is a gap or an overlap between the two segments
             if first_segment.seg_end != second_segment.seg_begin:
                 middle_point = (
                     first_segment.seg_end
