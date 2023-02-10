@@ -60,11 +60,11 @@ class SpeechSegment:
 
     @property
     def start(self) -> float:
-        return min([w.start for w in self.words])
+        return min([w.start for w in self.words]) if len(self.words) > 0 else 0.0
 
     @property
     def end(self) -> float:
-        return max([w.end for w in self.words])
+        return max([w.end for w in self.words]) if len(self.words) > 0 else 0.0
 
     @property
     def duration(self) -> float:
@@ -154,9 +154,10 @@ class TranscriptionResult:
         # Starts the first segment at 0.0, ends the last segment at max(word.ends)
         # If two consecutive diarization segments are not joint, find the middle point
         self.diarizationSegments[0].seg_begin = 0.0
-        self.diarizationSegments[-1].seg_end = max(
-            self.diarizationSegments[-1].seg_end, self.words[-1].end
-        )
+        if len(self.words):
+            self.diarizationSegments[-1].seg_end = max(
+                self.diarizationSegments[-1].seg_end, self.words[-1].end
+            )
         for first_segment, second_segment in zip(
             self.diarizationSegments[:-1], self.diarizationSegments[1:]
         ):
