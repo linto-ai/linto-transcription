@@ -1,3 +1,6 @@
+# 1.2.4
+ - Fix corner case of empty transcriptions
+
 # 1.2.3
  - Added multifiles route and processing.
  - Changed straddling word diarization resolve
