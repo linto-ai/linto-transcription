@@ -1,12 +1,11 @@
 # 1.2.4
  - Fix corner case of empty transcriptions
+ - Fix corner cases to assign words to speaker turns (overlapping diarization segments, words in between two segments)
 
 # 1.2.3
  - Added multifiles route and processing.
  - Changed straddling word diarization resolve
  - Added diarization results within transcription result.
- - Fix corner cases to assign words to speaker turns (overlapping diarization segments, words in between two segments)
- 
 
 # 1.2.2
  - Added recover to redis search index drop.
