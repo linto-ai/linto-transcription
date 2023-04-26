@@ -60,11 +60,11 @@ class SpeechSegment:
 
     @property
     def start(self) -> float:
-        return min([w.start for w in self.words])
+        return min([w.start for w in self.words]) if len(self.words) > 0 else 0.0
 
     @property
     def end(self) -> float:
-        return max([w.end for w in self.words])
+        return max([w.end for w in self.words]) if len(self.words) > 0 else 0.0
 
     @property
     def duration(self) -> float:
@@ -135,6 +135,8 @@ class TranscriptionResult:
             if isinstance(diarizationResult, str)
             else diarizationResult
         )
+
+        # Get segments ordered by start time
         self.diarizationSegments = [
             DiarizationSegment(**segment)
             for segment in sorted(
@@ -142,18 +144,24 @@ class TranscriptionResult:
             )
         ]
 
+        # Filter out segments that are included in others (i.e. which end before previous segment)
+        self.diarizationSegments = [self.diarizationSegments[i] for i in range(len(self.diarizationSegments)) \
+            if i == 0 or self.diarizationSegments[i].seg_end > self.diarizationSegments[i-1].seg_end]
+
         self.words.sort(key=lambda x: x.start)
 
         # Interpolates speaker change timestamps
         # Starts the first segment at 0.0, ends the last segment at max(word.ends)
         # If two consecutive diarization segments are not joint, find the middle point
         self.diarizationSegments[0].seg_begin = 0.0
-        self.diarizationSegments[-1].seg_end = max(
-            self.diarizationSegments[-1].seg_end, self.words[-1].end
-        )
+        if len(self.words):
+            self.diarizationSegments[-1].seg_end = max(
+                self.diarizationSegments[-1].seg_end, self.words[-1].end
+            )
         for first_segment, second_segment in zip(
-            self.diarizationSegments[1:-2], self.diarizationSegments[2:-1]
+            self.diarizationSegments[:-1], self.diarizationSegments[1:]
         ):
+            # When there is a gap or an overlap between the two segments
             if first_segment.seg_end != second_segment.seg_begin:
                 middle_point = (
                     first_segment.seg_end
@@ -167,14 +175,16 @@ class TranscriptionResult:
 
         # Iterate over segments and words to create speech segments
         for i, word in enumerate(self.words):
-            if not self._resolveWordSegment(i, self.diarizationSegments[seg_index]):
+            while not self._resolveWordSegment(i, self.diarizationSegments[seg_index]):
                 # Next segment
                 if len(current_words):  # Check that words contains something
                     self.segments.append(SpeechSegment(current_id, current_words))
+                current_words = []
                 if seg_index + 1 < len(self.diarizationSegments):
                     seg_index += 1
-                current_id = self.diarizationSegments[seg_index].spk_id
-                current_words = []
+                    current_id = self.diarizationSegments[seg_index].spk_id
+                else:
+                    break
             current_words.append(word)
         if len(current_words):
             self.segments.append(SpeechSegment(current_id, current_words))
@@ -182,21 +192,24 @@ class TranscriptionResult:
     def _resolveWordSegment(
         self, word_index: int, current_diarization_seg: dict
     ) -> bool:
-        """Applies word placement rules and decides if the word belong to the current_segment (True) or to the next (false)"""
+        """Applies word placement rules and decides if the word belong to the current_segment (True) or to the next (False)"""
+        word_start = self.words[word_index].start
+        word_end = self.words[word_index].end
         # Word completly within current segment
-        if self.words[word_index].end <= current_diarization_seg.seg_end:
+        if word_end <= current_diarization_seg.seg_end:
             return True
         # Word complely outside current segment
-        if self.words[word_index].start >= current_diarization_seg.seg_end:
+        if word_start >= current_diarization_seg.seg_end:
             return False
         # Word straddling two segments
         if not word_index:
             return False
         if word_index == len(self.words) - 1:
             return True
+        # Decide based on the distance with the previous and the next words
         if (
-            self.words[word_index].start - self.words[word_index - 1].end
-            <= self.words[word_index + 1].start - self.words[word_index].end
+            word_start - self.words[word_index - 1].end
+            <= self.words[word_index + 1].start - word_end
         ):
             return True
         return False

@@ -84,7 +84,7 @@ def vadCutIndexes(
                 sil_start_i = i
 
     # Returns cut_indexes as list
-    return (np.array(cut_indexes) * chunk_size).astype(np.int).tolist()
+    return (np.array(cut_indexes) * chunk_size).astype(np.int32).tolist()
 
 
 def splitFile(file_path, min_length: int = 10) -> Tuple[List[Tuple[str, float, float]], float]:

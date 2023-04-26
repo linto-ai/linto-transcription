@@ -1,5 +1,5 @@
 celery[redis,auth,msgpack]>=4.4.7
-Flask>=1.1.2
+flask>=1.1.2
 flask-swagger-ui>=3.36.0
 gunicorn>=20.1.0
 json5>=0.9.5
