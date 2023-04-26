@@ -89,6 +89,9 @@ def vadCutIndexes(
 
 def splitFile(file_path, min_length: int = 10) -> Tuple[List[Tuple[str, float, float]], float]:
     """Split a file into multiple subfiles using vad"""
+
+    # TODO: factorize with splitUsingTimestamps
+
     content = wavio.read(file_path)
     sr = content.rate
     audio = np.squeeze(content.data)
@@ -108,13 +111,16 @@ def splitFile(file_path, min_length: int = 10) -> Tuple[List[Tuple[str, float, f
     # Create subfiles
     subfiles = []
     i = 0
+    total_duration = 0.0
     for start, stop in zip([0] + cut_indexes, cut_indexes + [len(audio)]):
         subfile_path = f"{basename}_{i}.wav"
         offset = start / sr
         wavio.write(subfile_path, audio[start:stop], sr)
-        subfiles.append((subfile_path, offset, stop - start))
+        duration = (stop - start) / sr
+        subfiles.append((subfile_path, offset, duration))
+        total_duration += duration
         i += 1
-    return subfiles, len(audio)
+    return subfiles, total_duration
 
 
 def splitUsingTimestamps(
@@ -143,7 +149,8 @@ def splitUsingTimestamps(
         start = int(seg["start"] * sr)
         stop = int(seg["end"] * sr)
         wavio.write(subfile_path, audio[start:stop], sr)
-        subfiles.append((subfile_path, offset, seg["end"] - seg["start"]))
-        total_duration += seg["end"] - seg["start"]
+        duration = (seg["end"] - seg["start"]) / sr
+        subfiles.append((subfile_path, offset, duration))
+        total_duration += duration
 
     return subfiles, total_duration
