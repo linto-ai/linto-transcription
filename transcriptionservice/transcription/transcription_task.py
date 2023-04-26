@@ -13,6 +13,7 @@ from transcriptionservice.transcription.utils.audio import (
     splitFile,
     splitUsingTimestamps,
     transcoding,
+    getDuration,
 )
 from transcriptionservice.transcription.utils.serviceresolve import (
     ResolveException,
@@ -126,15 +127,17 @@ def transcription_task(self, task_info: dict, file_path: str):
 
     if available_transcription is None:
         # Split using VAD
-        if not task_info["timestamps"]:
-            logging.info(f"Spliting using VAD ...")
-            subfiles, total_duration = splitFile(file_name)
-
-        else:
+        if task_info["timestamps"]:
             logging.info(f"Split using provided timestamps ...")
             subfiles, total_duration = splitUsingTimestamps(
                 file_name, task_info["timestamps"]
             )
+        elif not config.vadConfig.isEnabled:
+            total_duration = getDuration(file_name)
+            subfiles = [(file_name, 0.0, total_duration)]
+        else:
+            logging.info(f"Splitting using VAD ...")
+            subfiles, total_duration = splitFile(file_name, method=config.vadConfig.methodName)
 
         logging.info(f"Input file has been split into {len(subfiles)} subfiles")
 
@@ -277,6 +280,9 @@ def transcription_task(self, task_info: dict, file_path: str):
 
 @celery.task(name="transcription_task_multi", bind=True)
 def transcription_task_multi(self, task_info: dict, files_info: list):
+    
+    # TODO: factorize with transcription_task()
+
     # Logging task
     logging.basicConfig(
         filename=f"/usr/src/app/logs/{self.request.id}.txt",

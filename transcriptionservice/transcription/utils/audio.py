@@ -6,8 +6,6 @@ import numpy as np
 import wavio
 import webrtcvad
 
-__all__ = ["transcoding", "splitFile"]
-
 
 def transcoding(
     input_file_path: str,
@@ -48,16 +46,44 @@ def transcoding(
     return output_file_path
 
 
+def getDuration(file_path):
+    content = wavio.read(file_path)
+    num_samples = content.data.shape[0]
+    return num_samples / content.rate
+
+
+_vad_methods = [
+    "WebRTC"
+]
+
+def validate_vad_method(method):
+    _method = None
+    for m in _vad_methods:
+        if method.lower() == m.lower():
+            _method = m
+            break
+    if _method is None:
+        raise ValueError(f"Invalid value of {method}, not in {_vad_methods}")
+    return _method
+
 def vadCutIndexes(
     audio,
     sample_rate,
     chunk_length: float = 0.03,
     mode: int = 1,
     min_silence_frame: int = 20,
+    method: str = "WebRTC",
 ):
     """Apply VAD on the signal and returns cut indexes located between speech segments"""
-    vad = webrtcvad.Vad()
-    vad.set_mode(mode)
+
+    method = validate_vad_method(method)
+
+    if method == "WebRTC":
+        vad = webrtcvad.Vad()
+        vad.set_mode(mode)
+    else:
+        raise NotImplementedError(f"VAD method with {method}")
+
     chunk_size = int(sample_rate * chunk_length)
     vad_res = []
 
@@ -87,7 +113,7 @@ def vadCutIndexes(
     return (np.array(cut_indexes) * chunk_size).astype(np.int32).tolist()
 
 
-def splitFile(file_path, min_length: int = 10) -> Tuple[List[Tuple[str, float, float]], float]:
+def splitFile(file_path, method: str = "WebRTC", min_length: int = 10) -> Tuple[List[Tuple[str, float, float]], float]:
     """Split a file into multiple subfiles using vad"""
 
     # TODO: factorize with splitUsingTimestamps
@@ -101,7 +127,7 @@ def splitFile(file_path, min_length: int = 10) -> Tuple[List[Tuple[str, float, f
         return [(file_path, 0.0, len(audio))], len(audio)
 
     # Get cut indexex based on vad
-    cut_indexes = vadCutIndexes(audio, sr)
+    cut_indexes = vadCutIndexes(audio, sr, method=method)
 
     # If no cut detected
     if len(cut_indexes) == 0:
