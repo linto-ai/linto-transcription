@@ -16,7 +16,7 @@ def transcoding(
     """Transcode the input file into 16b PCM Mono Wave file at given sample rate"""
     # Check File
     if not os.path.isfile(input_file_path):
-        raise FileNotFoundError("Ressource not found: {input_file_path}")
+        raise FileNotFoundError(f"Ressource not found: {input_file_path}")
 
     # Output name
     folder = os.path.dirname(input_file_path)
@@ -33,11 +33,12 @@ def transcoding(
         command += f" -ac {output_channels}"
     command += f" -ar {output_sr} {output_file_path}"
 
-    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
-    output, error = process.communicate()
+    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
 
     if not os.path.isfile(output_file_path):
-        raise Exception("Failed transcoding")
+        stderr = stderr.decode("utf-8")
+        raise Exception(f"Failed transcoding (command: {command}):\n{stderr}")
 
     # Cleanup
     if cleanup:
