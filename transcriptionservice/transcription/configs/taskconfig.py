@@ -109,14 +109,16 @@ class VADConfig(Config):
     ```json
     {
       "enableVAD": boolean (true),
-      "methodName": string ("WebRTC")
+      "methodName": string ("WebRTC"),
+      "minDuration": float (0.0)
     }
     ```
     """
 
     _keys_default = {
         "enableVAD": True,
-        "methodName": "WebRTC"
+        "methodName": "WebRTC",
+        "minDuration": 0,
     }
 
     def __init__(self, config: Union[str, dict] = {}):

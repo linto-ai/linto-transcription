@@ -114,7 +114,7 @@ def vadCutIndexes(
     return (np.array(cut_indexes) * chunk_size).astype(np.int32).tolist()
 
 
-def splitFile(file_path, method: str = "WebRTC", min_length: int = 10) -> Tuple[List[Tuple[str, float, float]], float]:
+def splitFile(file_path, method: str = "WebRTC", min_length: int = 10, min_segment_duration: int = None) -> Tuple[List[Tuple[str, float, float]], float]:
     """Split a file into multiple subfiles using vad"""
 
     # TODO: factorize with splitUsingTimestamps
@@ -127,8 +127,18 @@ def splitFile(file_path, method: str = "WebRTC", min_length: int = 10) -> Tuple[
     if len(audio) / sr < min_length:
         return [(file_path, 0.0, len(audio))], len(audio)
 
-    # Get cut indexex based on vad
+    # Get cut indexes based on vad
     cut_indexes = vadCutIndexes(audio, sr, method=method)
+
+    if min_segment_duration:
+        min_segment_samples = min_segment_duration * sr
+        new_cut_indexes = []
+        start = 0
+        for stop in cut_indexes:
+            if stop - start > min_segment_samples:
+                new_cut_indexes.append(stop)
+                start = stop
+        cut_indexes = new_cut_indexes
 
     # If no cut detected
     if len(cut_indexes) == 0:
@@ -147,6 +157,7 @@ def splitFile(file_path, method: str = "WebRTC", min_length: int = 10) -> Tuple[
         subfiles.append((subfile_path, offset, duration))
         total_duration += duration
         i += 1
+
     return subfiles, total_duration
 
 

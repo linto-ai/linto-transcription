@@ -133,11 +133,13 @@ def transcription_task(self, task_info: dict, file_path: str):
                 file_name, task_info["timestamps"]
             )
         elif not config.vadConfig.isEnabled:
+            logging.info(f"Split in one chunk (VAD disabled)")
             total_duration = getDuration(file_name)
             subfiles = [(file_name, 0.0, total_duration)]
         else:
             logging.info(f"Splitting using VAD ...")
-            subfiles, total_duration = splitFile(file_name, method=config.vadConfig.methodName)
+            subfiles, total_duration = splitFile(file_name, method=config.vadConfig.methodName, min_segment_duration=config.vadConfig.minDuration)
+            logging.info(f"Split in {len(subfiles)} chunks of around {config.vadConfig.minDuration} seconds")
 
         logging.info(f"Input file has been split into {len(subfiles)} subfiles")
 
