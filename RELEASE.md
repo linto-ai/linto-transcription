@@ -1,3 +1,6 @@
+# 1.2.5
+ - Add options for VAD (minimum duration of segments, ...)
+
 # 1.2.4
  - Fix corner case of empty transcriptions
  - Fix corner cases to assign words to speaker turns (overlapping diarization segments, words in between two segments)

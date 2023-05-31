@@ -5,6 +5,7 @@ from transcriptionservice.transcription.configs.sharedconfig import Config
 from transcriptionservice.transcription.configs.taskconfig import (
     DiarizationConfig,
     PunctuationConfig,
+    VADConfig,
 )
 
 
@@ -16,8 +17,9 @@ class TranscriptionConfig(Config):
       "transcribePerChannel": boolean (false),
       "enablePunctuation": boolean (false),
       "enableDiarization": boolean (false),
+      "vadConfig": obect VADConfig (WebRTC)
       "diarizationConfig": object DiarizationConfig (null),
-      "punctuationConfig": object PunctuationConfig(null)
+      "punctuationConfig": object PunctuationConfig (null)
     }
     ```
     """
@@ -27,6 +29,7 @@ class TranscriptionConfig(Config):
         "enablePunctuation": False,  # Kept for backward compatibility
         "diarizationConfig": DiarizationConfig(),
         "punctuationConfig": PunctuationConfig(),
+        "vadConfig": VADConfig(),
     }
 
     def __init__(self, config: Union[str, dict] = {}):
@@ -43,6 +46,8 @@ class TranscriptionConfig(Config):
             self.diarizationConfig = DiarizationConfig(self.diarizationConfig)
         if isinstance(self.punctuationConfig, dict):
             self.punctuationConfig = PunctuationConfig(self.punctuationConfig)
+        if isinstance(self.vadConfig, dict):
+            self.vadConfig = VADConfig(self.vadConfig)
 
         if self.enablePunctuation:
             self.punctuationConfig.enablePunctuation = True

@@ -6,8 +6,6 @@ import numpy as np
 import wavio
 import webrtcvad
 
-__all__ = ["transcoding", "splitFile"]
-
 
 def transcoding(
     input_file_path: str,
@@ -18,7 +16,7 @@ def transcoding(
     """Transcode the input file into 16b PCM Mono Wave file at given sample rate"""
     # Check File
     if not os.path.isfile(input_file_path):
-        raise FileNotFoundError("Ressource not found: {input_file_path}")
+        raise FileNotFoundError(f"Ressource not found: {input_file_path}")
 
     # Output name
     folder = os.path.dirname(input_file_path)
@@ -35,11 +33,12 @@ def transcoding(
         command += f" -ac {output_channels}"
     command += f" -ar {output_sr} {output_file_path}"
 
-    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
-    output, error = process.communicate()
+    process = subprocess.Popen(command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
 
     if not os.path.isfile(output_file_path):
-        raise Exception("Failed transcoding")
+        stderr = stderr.decode("utf-8")
+        raise Exception(f"Failed transcoding (command: {command}):\n{stderr}")
 
     # Cleanup
     if cleanup:
@@ -48,16 +47,44 @@ def transcoding(
     return output_file_path
 
 
+def getDuration(file_path):
+    content = wavio.read(file_path)
+    num_samples = content.data.shape[0]
+    return num_samples / content.rate
+
+
+_vad_methods = [
+    "WebRTC"
+]
+
+def validate_vad_method(method):
+    _method = None
+    for m in _vad_methods:
+        if method.lower() == m.lower():
+            _method = m
+            break
+    if _method is None:
+        raise ValueError(f"Invalid value of {method}, not in {_vad_methods}")
+    return _method
+
 def vadCutIndexes(
     audio,
     sample_rate,
     chunk_length: float = 0.03,
     mode: int = 1,
     min_silence_frame: int = 20,
+    method: str = "WebRTC",
 ):
     """Apply VAD on the signal and returns cut indexes located between speech segments"""
-    vad = webrtcvad.Vad()
-    vad.set_mode(mode)
+
+    method = validate_vad_method(method)
+
+    if method == "WebRTC":
+        vad = webrtcvad.Vad()
+        vad.set_mode(mode)
+    else:
+        raise NotImplementedError(f"VAD method with {method}")
+
     chunk_size = int(sample_rate * chunk_length)
     vad_res = []
 
@@ -87,8 +114,11 @@ def vadCutIndexes(
     return (np.array(cut_indexes) * chunk_size).astype(np.int32).tolist()
 
 
-def splitFile(file_path, min_length: int = 10) -> Tuple[List[Tuple[str, float, float]], float]:
+def splitFile(file_path, method: str = "WebRTC", min_length: int = 10, min_segment_duration: int = None) -> Tuple[List[Tuple[str, float, float]], float]:
     """Split a file into multiple subfiles using vad"""
+
+    # TODO: factorize with splitUsingTimestamps
+
     content = wavio.read(file_path)
     sr = content.rate
     audio = np.squeeze(content.data)
@@ -97,8 +127,18 @@ def splitFile(file_path, min_length: int = 10) -> Tuple[List[Tuple[str, float, f
     if len(audio) / sr < min_length:
         return [(file_path, 0.0, len(audio))], len(audio)
 
-    # Get cut indexex based on vad
-    cut_indexes = vadCutIndexes(audio, sr)
+    # Get cut indexes based on vad
+    cut_indexes = vadCutIndexes(audio, sr, method=method)
+
+    if min_segment_duration:
+        min_segment_samples = min_segment_duration * sr
+        new_cut_indexes = []
+        start = 0
+        for stop in cut_indexes:
+            if stop - start > min_segment_samples:
+                new_cut_indexes.append(stop)
+                start = stop
+        cut_indexes = new_cut_indexes
 
     # If no cut detected
     if len(cut_indexes) == 0:
@@ -108,13 +148,17 @@ def splitFile(file_path, min_length: int = 10) -> Tuple[List[Tuple[str, float, f
     # Create subfiles
     subfiles = []
     i = 0
+    total_duration = 0.0
     for start, stop in zip([0] + cut_indexes, cut_indexes + [len(audio)]):
         subfile_path = f"{basename}_{i}.wav"
         offset = start / sr
         wavio.write(subfile_path, audio[start:stop], sr)
-        subfiles.append((subfile_path, offset, stop - start))
+        duration = (stop - start) / sr
+        subfiles.append((subfile_path, offset, duration))
+        total_duration += duration
         i += 1
-    return subfiles, len(audio)
+
+    return subfiles, total_duration
 
 
 def splitUsingTimestamps(
@@ -143,7 +187,8 @@ def splitUsingTimestamps(
         start = int(seg["start"] * sr)
         stop = int(seg["end"] * sr)
         wavio.write(subfile_path, audio[start:stop], sr)
-        subfiles.append((subfile_path, offset, seg["end"] - seg["start"]))
-        total_duration += seg["end"] - seg["start"]
+        duration = (seg["end"] - seg["start"]) / sr
+        subfiles.append((subfile_path, offset, duration))
+        total_duration += duration
 
     return subfiles, total_duration
