@@ -170,6 +170,7 @@ class TranscriptionResult:
                 first_segment.seg_end = second_segment.seg_begin = middle_point
 
         seg_index = 0
+        previous_id = None
         current_id = self.diarizationSegments[seg_index].spk_id
         current_words = []
 
@@ -177,17 +178,25 @@ class TranscriptionResult:
         for i, word in enumerate(self.words):
             while not self._resolveWordSegment(i, self.diarizationSegments[seg_index]):
                 # Next segment
-                if len(current_words):  # Check that words contains something
-                    self.segments.append(SpeechSegment(current_id, current_words))
-                current_words = []
                 if seg_index + 1 < len(self.diarizationSegments):
                     seg_index += 1
-                    current_id = self.diarizationSegments[seg_index].spk_id
+                    next_id = self.diarizationSegments[seg_index].spk_id
                 else:
                     break
+                if len(current_words):
+                    if current_id != previous_id: # Flush current segment
+                        self.segments.append(SpeechSegment(current_id, current_words))
+                    else: # Merge with previous segment
+                        self.segments[-1].words += current_words
+                    previous_id = current_id
+                current_id = next_id
+                current_words = []
             current_words.append(word)
         if len(current_words):
-            self.segments.append(SpeechSegment(current_id, current_words))
+            if current_id != previous_id: # Flush current segment
+                self.segments.append(SpeechSegment(current_id, current_words))
+            else: # Merge with previous segment
+                self.segments[-1].words += current_words
 
     def _resolveWordSegment(
         self, word_index: int, current_diarization_seg: dict
@@ -195,10 +204,10 @@ class TranscriptionResult:
         """Applies word placement rules and decides if the word belong to the current_segment (True) or to the next (False)"""
         word_start = self.words[word_index].start
         word_end = self.words[word_index].end
-        # Word completly within current segment
+        # Word completely within current segment
         if word_end <= current_diarization_seg.seg_end:
             return True
-        # Word complely outside current segment
+        # Word completely outside current segment
         if word_start >= current_diarization_seg.seg_end:
             return False
         # Word straddling two segments
