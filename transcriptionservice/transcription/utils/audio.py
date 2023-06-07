@@ -20,7 +20,7 @@ def transcoding(
 
     # Output name
     folder = os.path.dirname(input_file_path)
-    basename = os.path.basename(input_file_path).split(".")[0]
+    basename = os.path.splitext(os.path.basename(input_file_path))[0]
     if input_file_path.endswith(".wav"):
         basename = f"_{basename}.wav"
     else:
@@ -143,7 +143,7 @@ def splitFile(file_path, method: str = "WebRTC", min_length: int = 10, min_segme
     # If no cut detected
     if len(cut_indexes) == 0:
         return [(file_path, 0.0, len(audio))], len(audio)
-    basename = ".".join(file_path.split(".")[:-1])
+    basename = os.path.splitext(file_path)[0]
 
     # Create subfiles
     subfiles = []
@@ -177,7 +177,7 @@ def splitUsingTimestamps(
     content = wavio.read(file_path)
     sr = content.rate
     audio = np.squeeze(content.data)
-    basename = ".".join(file_path.split(".")[:-1])
+    basename = os.path.splitext(file_path)[0]
     # Create subfiles
     subfiles = []
     total_duration = 0.0

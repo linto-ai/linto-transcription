@@ -1,3 +1,11 @@
+# 1.2.6
+ - Fix possible worker conflict when multiple workers are running on the same file
+    (the audio file could be deleted by the worker that first finishes)
+ - Fix speaker segment splitted in two when diarization detects another speaker with no word assigned.
+ - Fix a bug in the formatting progression "status" ("StepState.PENDING" -> "pending"),
+    which was introduced because python version was not fixed in Dockerfile (python 3.11 changes behaviour when converting enum to string)
+ - Increase timeout (1H -> 1 day)
+
 # 1.2.5
  - Add options for VAD (minimum duration of segments, ...)
 

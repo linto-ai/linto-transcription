@@ -141,13 +141,14 @@ def transcription_multi():
         )
 
     # Files
+    random_hash = fileHash(os.urandom(32))
     audios = []
     for audio_file in files:
         file_buffer = audio_file.read()
         file_hash = fileHash(file_buffer)
         file_ext = audio_file.filename.split(".")[-1]
         try:
-            file_path = write_ressource(file_buffer, file_hash, AUDIO_FOLDER, file_ext)
+            file_path = write_ressource(file_buffer, f"{file_hash}_{random_hash}", AUDIO_FOLDER, file_ext)
         except Exception as e:
             logger.error("Failed to write ressource: {}".format(e))
             return "Server Error: Failed to write ressource", 500
@@ -240,8 +241,9 @@ def transcription():
     requestlog(logger, request.remote_addr, transcription_config, file_hash, False)
 
     # Create ressource
+    random_hash = fileHash(os.urandom(32))
     try:
-        file_path = write_ressource(file_buffer, file_hash, AUDIO_FOLDER, extension)
+        file_path = write_ressource(file_buffer, f"{file_hash}_{random_hash}", AUDIO_FOLDER, extension)
     except Exception as e:
         logger.error("Failed to write ressource: {}".format(e))
         return "Server Error: Failed to write ressource", 500
@@ -339,7 +341,7 @@ if __name__ == "__main__":
         {
             "bind": "{}:{}".format("0.0.0.0", 80),
             "workers": config.concurrency + 1,
-            "timeout": 3600,
+            "timeout": 3600 * 24,
         },
     )
 
