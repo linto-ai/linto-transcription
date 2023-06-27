@@ -13,7 +13,7 @@ lang_spec_sub = {
     ]
 }
 
-logger = logging.getLogger("__services_manager__")
+logger = logging.getLogger("__transcription-service__")
 
 
 def textToNum(text: str, language: str) -> str:
