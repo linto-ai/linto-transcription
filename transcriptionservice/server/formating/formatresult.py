@@ -5,7 +5,7 @@ from transcriptionservice.server.formating.subtitling import Subtitles
 from transcriptionservice.transcription.transcription_result import \
     TranscriptionResult
 
-from .normalization import cleanText, textToNum
+from .normalization import cleanText, textToNum, removeFinalPunctuations
 
 
 def formatResult(
@@ -13,6 +13,7 @@ def formatResult(
     return_format: str,
     raw_return: bool = False,
     convert_numbers: bool = False,
+    remove_punctuation_from_words: bool = True,
     user_sub: List[Tuple[str, str]] = [],
 ) -> Union[dict, str]:
     """Format result using result query parameters
@@ -32,6 +33,9 @@ def formatResult(
             seg["segment"] = cleanText(seg["segment"], language, user_sub)
             if convert_numbers:
                 seg["segment"] = textToNum(seg["segment"], language)
+            if remove_punctuation_from_words:
+                for word in seg["words"]:
+                    word["word"] = removeFinalPunctuations(word["word"])
         result["transcription_result"] = cleanText(
             result["transcription_result"], language, user_sub
         )
@@ -61,3 +65,4 @@ def formatResult(
         )
     else:
         raise Exception("Unknown return format")
+
