@@ -37,8 +37,8 @@ def cleanText(text: str, language: str, user_sub: list) -> str:
 
     return text
 
-# string.punctuation, plus Whisper specific "«»¿", plus Arabic/Russian, minus apostrophe "'" and dash "-"
-_punctuations = '.!?"#&()*+,/:;<=>@[\\]^_`{|}~«»¿。，！？：”、…؟،؛—'
+# Punctuation marks
+_punctuations = '.!?,:;¿。，！？：、…؟،؛'
 # special characters that can occur along with ?!;: in Whisper tokens
 _punctuations += '>/]\'்:!(~\u200b[ா「»"< ?-;…,*」.)'
 _punctuations = "".join(set(_punctuations) - set("'-"))
