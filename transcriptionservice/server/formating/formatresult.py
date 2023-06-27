@@ -5,7 +5,7 @@ from transcriptionservice.server.formating.subtitling import Subtitles
 from transcriptionservice.transcription.transcription_result import \
     TranscriptionResult
 
-from .normalization import cleanText, textToNum, removeFinalPunctuations
+from .normalization import cleanText, textToNum, removeTrailingPunctuations
 
 
 def formatResult(
@@ -13,8 +13,9 @@ def formatResult(
     return_format: str,
     raw_return: bool = False,
     convert_numbers: bool = False,
-    remove_punctuation_from_words: bool = True,
     user_sub: List[Tuple[str, str]] = [],
+    remove_punctuation_from_words: bool = True,
+    ensure_no_spaces_in_words: bool = True,
 ) -> Union[dict, str]:
     """Format result using result query parameters
 
@@ -35,7 +36,10 @@ def formatResult(
                 seg["segment"] = textToNum(seg["segment"], language)
             if remove_punctuation_from_words:
                 for word in seg["words"]:
-                    word["word"] = removeFinalPunctuations(word["word"])
+                    word["word"] = removeTrailingPunctuations(word["word"], ensure_no_spaces_in_words=ensure_no_spaces_in_words)
+            elif ensure_no_spaces_in_words:
+                for word in seg["words"]:
+                    assert " " not in word["word"], f"Got unexpected word containing space: {word['word']}"
         result["transcription_result"] = cleanText(
             result["transcription_result"], language, user_sub
         )
