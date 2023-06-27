@@ -44,7 +44,7 @@ _punctuations_regex = "["+re.escape(_punctuations)+"]"
 def removeFinalPunctuations(text: str) -> str:
     text = text.strip()
     # We don't remove dots inside words (e.g. "ab@gmail.com")
-    new_text = re.sub(rf"{_punctuations_regex}$", "", text).strip()
+    new_text = re.sub(rf"{_punctuations_regex}+$", "", text).strip()
     # Let punctuation marks that are alone
     if not new_text and " " not in text:
         new_text = text
