@@ -38,7 +38,7 @@ def cleanText(text: str, language: str, user_sub: list) -> str:
     return text
 
 # Punctuation marks
-_punctuations = '.!?,:;¿。，！？：、…؟،؛'
+_punctuations = '!,.:;?¿،؛؟…、。！，：？' # + '"”' + ')]}'
 # special characters that can occur along with ?!;: in Whisper tokens
 _punctuations += '>/]\'்:!(~\u200b[ா「»"< ?-;…,*」.)'
 _punctuations = "".join(set(_punctuations) - set("'-"))
