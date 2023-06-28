@@ -1,3 +1,6 @@
+# 1.2.7
+ - Remove punctuations in words (to avoid spaces as in "allez-vous ?")
+
 # 1.2.6
  - Fix possible worker conflict when multiple workers are running on the same file
     (the audio file could be deleted by the worker that first finishes)
