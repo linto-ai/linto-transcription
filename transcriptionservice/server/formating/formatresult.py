@@ -28,32 +28,29 @@ def formatResult(
     - user_sub (List[Tuple[str, str]]): A list of tuple for custom substitution in the final transcription.
 
     """
+
     language = os.environ.get("LANGUAGE", "")
+    if convert_numbers:
+        fulltext_cleaner = lambda text: textToNum(cleanText(text, language, user_sub), language)
+    else:
+        fulltext_cleaner = lambda text: cleanText(text, language, user_sub)
+
     if return_format == "application/json":
         for seg in result["segments"]:
-            seg["segment"] = cleanText(seg["segment"], language, user_sub)
-            if convert_numbers:
-                seg["segment"] = textToNum(seg["segment"], language)
+            seg["segment"] = fulltext_cleaner(seg["segment"])
             if remove_punctuation_from_words:
                 for word in seg["words"]:
                     word["word"] = removeWordPunctuations(word["word"], ensure_no_spaces_in_words=ensure_no_spaces_in_words)
             elif ensure_no_spaces_in_words:
                 for word in seg["words"]:
                     assert " " not in word["word"], f"Got unexpected word containing space: {word['word']}"
-        result["transcription_result"] = cleanText(
-            result["transcription_result"], language, user_sub
-        )
-        if convert_numbers:
-            result["transcription_result"] = textToNum(result["transcription_result"], language)
+        result["transcription_result"] = fulltext_cleaner(result["transcription_result"])
         return result
+
     elif return_format == "text/plain":
-        final_result = cleanText(
-            result["transcription_result" if not raw_return else "raw_transcription"],
-            language,
-            user_sub,
+        final_result = fulltext_cleaner(
+            result["transcription_result" if not raw_return else "raw_transcription"]
         )
-        if convert_numbers:
-            final_result = textToNum(final_result, language)
         return final_result
 
     elif return_format == "text/vtt":
@@ -67,6 +64,7 @@ def formatResult(
         return Subtitles(t_result, language).toSRT(
             return_raw=raw_return, convert_numbers=convert_numbers, user_sub=user_sub
         )
+
     else:
         raise Exception("Unknown return format")
 
