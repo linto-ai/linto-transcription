@@ -5,7 +5,7 @@ from transcriptionservice.server.formating.subtitling import Subtitles
 from transcriptionservice.transcription.transcription_result import \
     TranscriptionResult
 
-from .normalization import cleanText, textToNum, removeTrailingPunctuations
+from .normalization import cleanText, textToNum, removeWordPunctuations
 
 
 def formatResult(
@@ -36,7 +36,7 @@ def formatResult(
                 seg["segment"] = textToNum(seg["segment"], language)
             if remove_punctuation_from_words:
                 for word in seg["words"]:
-                    word["word"] = removeTrailingPunctuations(word["word"], ensure_no_spaces_in_words=ensure_no_spaces_in_words)
+                    word["word"] = removeWordPunctuations(word["word"], ensure_no_spaces_in_words=ensure_no_spaces_in_words)
             elif ensure_no_spaces_in_words:
                 for word in seg["words"]:
                     assert " " not in word["word"], f"Got unexpected word containing space: {word['word']}"

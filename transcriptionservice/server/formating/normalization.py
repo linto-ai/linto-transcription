@@ -37,18 +37,20 @@ def cleanText(text: str, language: str, user_sub: list) -> str:
 
     return text
 
-# Punctuation marks
-_punctuations = '!,.:;?¿،؛؟…、。！，：？' # + '"”' + ')]}'
-# special characters that can occur along with ?!;: in Whisper tokens
-_punctuations += '>/]\'்:!(~\u200b[ா「»"< ?-;…,*」.)'
-_punctuations = "".join(set(_punctuations) - set("'-"))
-assert " " in _punctuations
-_trailing_punctuations_regex = r"["+re.escape(_punctuations)+"]+$"
 
-def removeTrailingPunctuations(text: str, ensure_no_spaces_in_words: bool=True) -> str:
+# All symbols and punctuations except apostrophe ('), hyphen (-) and underscore (_)
+# and the space character (which can separate several series of punctuation marks)
+# Example of punctuations that can output models like Whisper: !,.:;?¿،؛؟…、。！，：？>/]:!(~\u200b[ா「«»“”"< ?;…,*」.)'
+_punctuation_regex = r"[^\w\'\-_]"
+_leading_punctuations_regex = r"^" + _punctuation_regex + r"+"
+_trailing_punctuations_regex = _punctuation_regex + r"+$"
+
+
+def removeWordPunctuations(text: str, ensure_no_spaces_in_words: bool=True) -> str:
     text = text.strip()
     # Note: we don't remove dots inside words (e.g. "ab@gmail.com")
-    new_text = re.sub(_trailing_punctuations_regex, "", text)
+    new_text = re.sub(_leading_punctuations_regex, "", text) #.lstrip()
+    new_text = re.sub(_trailing_punctuations_regex, "", new_text) #.rstrip()
     # Let punctuation marks that are alone
     if not new_text:
         new_text = text
@@ -57,5 +59,6 @@ def removeTrailingPunctuations(text: str, ensure_no_spaces_in_words: bool=True) 
         logger.warning(f"Got unexpected word containing space: {new_text}")
         new_text, tail = new_text.split(" ", 1)
         # OK if the tail only contains non alphanumeric characters (then we just keep the first part)
-        assert not re.search(r"[^\W\d_]", tail), f"Got unexpected word containing space: {text}"
+        assert not re.search(r"[^\W\d\'\-_]", tail), f"Got unexpected word containing space: {text}"
+        return removeWordPunctuations(new_text, ensure_no_spaces_in_words=ensure_no_spaces_in_words)
     return new_text
