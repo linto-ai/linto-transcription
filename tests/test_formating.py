@@ -81,5 +81,21 @@ class TestFormating(unittest.TestCase):
                 input,
             )
 
+    def test_clean_text(self):
+
+        LANG = "fr_FR"
+
+        for input, expected in [
+            ("Oui? Oui! Oui, oui.", "Oui ? Oui ! Oui, oui."),
+            ("Oui  ? Oui  ! Oui, oui.", "Oui ? Oui ! Oui, oui."),
+            ("J'ai 3   pour cent  ou bien  5.5 pourcent.", "J'ai 3 % ou bien 5.5 %."),
+            ("apour cent apourcent.", "apour cent apourcent."),
+        ]:
+            self.assertEqual(
+                cleanText(input, LANG, []),
+                expected
+            )
+
+
 if __name__ == '__main__':
     unittest.main()

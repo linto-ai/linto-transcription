@@ -3,13 +3,13 @@ import re
 
 from text_to_num import alpha2digit
 
-basic_sub = [("' ", "'"), ("\?", " ?"), ("!", " !"), (" +", " ")]
+basic_sub = [("' ", "'"), ("\?", " ?"), ("!", " !"), (r"\s+", " ")]
 
 lang_spec_sub = {
-    "fr_FR": [
-        ("pour cent", "%"),
-        ("pourcent", "%"),
-        (r"(^|[^\dA-Z])([1])([^\d:]|$)", r"\1un\3"),
+    "fr": [
+        (r"\bpour cent\b", "%"),
+        (r"\bpourcent\b", "%"),
+        (r"(^|[^\dA-Z])([1])([^\d:]|$)", r"\1un\3"), # WTF?
     ]
 }
 
@@ -21,14 +21,13 @@ def textToNum(text: str, language: str) -> str:
 
 
 def cleanText(text: str, language: str, user_sub: list) -> str:
-    clean_text = text
 
     # Basic substitutions
     for elem, target in basic_sub:
         text = re.sub(elem, target, text)
 
     # Language specific substitutions
-    for elem, target in lang_spec_sub.get(language, []):
+    for elem, target in lang_spec_sub.get(language[:2], []):
         text = re.sub(elem, target, text)
 
     # Request specific substitions
