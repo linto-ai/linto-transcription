@@ -110,6 +110,13 @@ class TranscriptionResult:
         self.transcription_confidence /= len(transcriptions)
         self.words.sort(key=lambda x: x.start)
 
+        # TODO: fix inconsistency in self.transcription_confidence between _mergeTranscription and setTranscription:
+        # - setTranscription: confidence = average word confidence
+        # - _mergeTranscription: confidence = average segment confidence
+        # setTranscription is used when transcription is available in the cache
+        # and only words are saved in the cache
+        # so we can't compute the segment confidence anymore
+
         if spk_ids:
             for (transcription, offset), id in zip(transcriptions, spk_ids):
                 seg_words = []

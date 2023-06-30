@@ -6,10 +6,12 @@ from text_to_num import alpha2digit
 basic_sub = [("' ", "'"), ("\?", " ?"), ("!", " !"), (r"\s+", " ")]
 
 lang_spec_sub = {
-    "fr": [
+    # TODO: remove those dangerous substitutions 
+    #       that are fortunately not triggered when local is fr-FR and not fr_FR
+    "fr_FR": [
         (r"\bpour cent\b", "%"),
         (r"\bpourcent\b", "%"),
-        (r"(^|[^\dA-Z])([1])([^\d:]|$)", r"\1un\3"), # WTF?
+        (r"(^|[^\dA-Z])([1])([^\d:]|$)", r"\1un\3"),
     ]
 }
 
@@ -27,7 +29,7 @@ def cleanText(text: str, language: str, user_sub: list) -> str:
         text = re.sub(elem, target, text)
 
     # Language specific substitutions
-    for elem, target in lang_spec_sub.get(language[:2], []):
+    for elem, target in lang_spec_sub.get(language, []):
         text = re.sub(elem, target, text)
 
     # Request specific substitions
