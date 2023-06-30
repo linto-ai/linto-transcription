@@ -15,6 +15,7 @@ def formatResult(
     convert_numbers: bool = False,
     user_sub: List[Tuple[str, str]] = [],
     remove_punctuation_from_words: bool = True,
+    remove_empty_words: bool = True,
     ensure_no_spaces_in_words: bool = True,
 ) -> Union[dict, str]:
     """Format result using result query parameters
@@ -44,6 +45,8 @@ def formatResult(
             elif ensure_no_spaces_in_words:
                 for word in seg["words"]:
                     assert " " not in word["word"], f"Got unexpected word containing space: {word['word']}"
+            if remove_empty_words:
+                seg["words"] = [word for word in seg["words"] if word["word"]]
         result["transcription_result"] = fulltext_cleaner(result["transcription_result"])
         return result
 

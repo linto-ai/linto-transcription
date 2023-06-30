@@ -16,7 +16,7 @@ class TestFormating(unittest.TestCase):
     def test_format_word(self):
 
         # all kinds of punctuations
-        puncs = "!,.:;?¿،؛؟…、。！，：？>/]:!(~\u200b[ா「«»“”\"<?;…...:,*」.)[]\{\}"
+        puncs = "!,.:;?¿،؛؟…、。！，：？>/]:!(~\u200b[「«»“”\"<?;…,*」.)[]\{\}"
 
         # Test things that should be left unchanged
         for word in [
@@ -32,8 +32,11 @@ class TestFormating(unittest.TestCase):
             "http://www.website.com",
             "a"+puncs+"b",
             "'"+puncs+"'", "-"+puncs+"-", "_"+puncs+"_",
-            # Leave isolated punctuations
-            ".", puncs,
+            # Symbols that correspond to pronunciated words
+            "3$", "3€", "3£", "3%", "3×", "C++", "C#", "@user", "user@",
+            # Symbols in isolation
+            "$", "€", "£", "%", "#", "+", "×", "@",
+            "&", # Only in isolation
             ]:
 
             self.assertEqual(
@@ -62,10 +65,25 @@ class TestFormating(unittest.TestCase):
             (puncs + " " + puncs + " _'hello'_ " + puncs + " " + puncs, "_'hello'_"),
             # Corner case
             ("hello '", "hello"),
+            ("3 $", "3"), ("3 %", "3"), ("3 €", "3"),
+            ("3 🎵", "3"),
+            ("M&", "M"),
         ]:
             self.assertEqual(
                 removeWordPunctuations(input),
                 expected
+            )
+
+        # Test things that should be filtered out
+        for input in [
+            ".", puncs,
+            "🎵",
+            "*", "***", "[...]",
+            "<", ">", "<>", "< >",
+            ]:
+            self.assertEqual(
+                removeWordPunctuations(input),
+                ""
             )
 
         # Test things that should raised exceptions

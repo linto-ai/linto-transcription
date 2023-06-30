@@ -1,5 +1,5 @@
 import logging
-import re
+import regex as re # for using things like \p{Sc} (currencies)
 
 from text_to_num import alpha2digit
 
@@ -46,12 +46,22 @@ def cleanText(text: str, language: str, user_sub: list) -> str:
     return text
 
 
-# All symbols and punctuations except apostrophe ('), hyphen (-) and underscore (_)
+# All punctuations and symbols EXCEPT:
+# * apostrophe (') and hyphen (-)
+# * underscore (_)
+# * currency symbols ($, €, £, ...) -> \p{Sc}
+# * math symbols (%, +, ×). ex: C++
+# * misc (#, @). ex: C#, @user
 # and the space character (which can separate several series of punctuation marks)
 # Example of punctuations that can output models like Whisper: !,.:;?¿،؛؟…、。！，：？>/]:!(~\u200b[ா「«»“”"< ?;…,*」.)'
-_punctuation_regex = r"[^\w\'\-_]"
+_punctuation_regex = r"[^\w\p{Sc}" + re.escape("'-_%+×#@") + "]"
 _leading_punctuations_regex = r"^" + _punctuation_regex + r"+"
 _trailing_punctuations_regex = _punctuation_regex + r"+$"
+
+# A list of symbols that can be an isolated words and not in the exclusion list above
+# * &
+# * candidates not retained: §, <, =, >, ≤, ≥
+_maybe_word_regex = r"[" + re.escape("&") + r"]$"
 
 
 def removeWordPunctuations(text: str, ensure_no_spaces_in_words: bool=True) -> str:
@@ -61,7 +71,10 @@ def removeWordPunctuations(text: str, ensure_no_spaces_in_words: bool=True) -> s
     new_text = re.sub(_trailing_punctuations_regex, "", new_text) #.rstrip()
     # Let punctuation marks that are alone
     if not new_text:
-        new_text = text
+        if re.match(_maybe_word_regex, text):
+            new_text = text
+        else:
+            new_text = ""
     # Ensure that there is no space in the middle of a word
     if ensure_no_spaces_in_words and " " in new_text:
         logger.warning(f"Got unexpected word containing space: {new_text}")
