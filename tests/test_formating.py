@@ -85,10 +85,23 @@ class TestFormating(unittest.TestCase):
 
         LANG = "fr-FR"
 
-        for input, expected in [
-            ("Oui? Oui! Oui, oui.", "Oui ? Oui ! Oui, oui."),
-            ("Oui  ? Oui  ! Oui, oui.", "Oui ? Oui ! Oui, oui."),
-            ("J'ai 3   pour cent  ou bien  5.5 pourcent.", "J'ai 3 pour cent ou bien 5.5 pourcent."),
+        expected = 'Oui ? Oui ! Oui, oui. « oui ».'
+        for input in [
+            'Oui? Oui! Oui, oui.«oui».',
+            'Oui ? Oui ! Oui , oui . « oui » .',
+            "Oui  ?  Oui  !  Oui  ,  oui  .  «  oui  »  .",
+        ]:
+            self.assertEqual(
+                cleanText(input, LANG, []),
+                expected
+            )
+
+        LANG = "en-US"
+        expected = 'Oui? Oui! Oui, oui. « oui ».'
+        for input in [
+            'Oui? Oui! Oui, oui.«oui».',
+            'Oui ? Oui ! Oui , oui . « oui » .',
+            "Oui  ?  Oui  !  Oui  ,  oui  .  «  oui  »  .",
         ]:
             self.assertEqual(
                 cleanText(input, LANG, []),

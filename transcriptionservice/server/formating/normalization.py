@@ -3,38 +3,45 @@ import re
 
 from text_to_num import alpha2digit
 
-basic_sub = [("' ", "'"), ("\?", " ?"), ("!", " !"), (r"\s+", " ")]
-
 lang_spec_sub = {
-    # TODO: remove those dangerous substitutions 
-    #       that are fortunately not triggered when local is fr-FR and not fr_FR
-    "fr_FR": [
-        (r"\bpour cent\b", "%"),
-        (r"\bpourcent\b", "%"),
-        (r"(^|[^\dA-Z])([1])([^\d:]|$)", r"\1un\3"),
-    ]
+    "fr": [
+        # Add spaces around «»
+        (r"([" + re.escape('«»') + r"])", r" \1 "),
+        # Add a space before double punctuation marks
+        (r"([" + re.escape('?!:;') + r"])", r" \1"),
+        # Remove space before simple punctuation marks
+        (r"\s+([" + re.escape(',.') + r"])", r"\1"),
+    ],
 }
+
+default_sub = [
+    # Add spaces around «»
+    (r"([" + re.escape('«»') + r"])", r" \1 "),
+    # Remove space before punctuation marks
+    (r"\s+([" + re.escape('?!:;,.') + r"])", r"\1"),
+]
 
 logger = logging.getLogger("__transcription-service__")
 
 
 def textToNum(text: str, language: str) -> str:
+    # Note: we could add symbols conversions as well (e.g. "euros" -> "€", "pour cent" -> "%", etc.)
+    #       but this seems awkward and prone to downstream bugs
     return "\n".join([alpha2digit(elem, language[:2]) for elem in text.split("\n")])
 
 
 def cleanText(text: str, language: str, user_sub: list) -> str:
 
-    # Basic substitutions
-    for elem, target in basic_sub:
-        text = re.sub(elem, target, text)
-
     # Language specific substitutions
-    for elem, target in lang_spec_sub.get(language, []):
+    for elem, target in lang_spec_sub.get(language[:2], default_sub):
         text = re.sub(elem, target, text)
 
     # Request specific substitions
     for elem, target in user_sub:
         text = re.sub(elem, target, text)
+
+    # Remove duplicated spaces
+    text = re.sub(r"\s+", " ", text)
 
     return text
 
