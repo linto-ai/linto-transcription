@@ -84,7 +84,7 @@ docker-compose up .
 | Env variable| Description | Example |
 |:-|:-|:-|
 |SERVICE_NAME| STT service name, use to connect to the proper redis channel and mongo collection|my_stt_service|
-|LANGUAGE| Language code as a BCP-47 code | fr_FR |
+|LANGUAGE| Language code as a BCP-47 code | fr-FR |
 |KEEP_AUDIO|Either audio files are kept after request|1 (true) / 0 (false)|
 |CONCURRENCY|Number of workers (default 10)|10|
 |SERVICES_BROKER|Message broker address|redis://broker_address:6379|
@@ -169,9 +169,9 @@ __Language compatibily__
 A subservice is compatible if its language(s) is(are) compatible with the transcription-service language:
 
 transcription-service language <-> subservice language.
-* Same BCP-27 code: fr_Fr <-> fr_FR => OK
-* Language contained: fr_FR <-> fr_FR|it_IT|en_US => OK
-* Star token (all_language): fr_FR <-> * => OK
+* Same BCP-27 code: fr_Fr <-> fr-FR => OK
+* Language contained: fr-FR <-> fr-FR|it_IT|en_US => OK
+* Star token (all_language): fr-FR <-> * => OK
 
 
 ### /transcribe

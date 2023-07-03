@@ -1,3 +1,9 @@
+# 1.2.8
+ - In full transcription: proper normalization of spaces before/after traditional punctuation marks (for French and English at least)
+ - In word normalization: improve distinction of characters (word / punctuation / symbol that can be pronounced / garbage symbol)
+ - Fix typo fr_FR -> fr-FR
+ - Fix inconsistency in transcription confidence score (now always computed from word confidence scores, not segment confidence scores)
+
 # 1.2.7
  - Remove punctuations in words (to avoid spaces as in "allez-vous ?")
 

@@ -101,13 +101,16 @@ class TranscriptionResult:
         self, transcriptions: List[Tuple[dict, float]], spk_ids: list = None
     ) -> None:
         """Merges transcription results applying offsets"""
+        self.transcription_confidence = 0
+        num_words = 0
         for transcription, offset in transcriptions:
             for w in transcription["words"]:
                 word = Word(**w)
                 word.apply_offset(offset)
                 self.words.append(word)
-            self.transcription_confidence += transcription["confidence-score"]
-        self.transcription_confidence /= len(transcriptions)
+                self.transcription_confidence += word.conf
+            num_words += len(transcription["words"])
+        self.transcription_confidence /= num_words
         self.words.sort(key=lambda x: x.start)
 
         if spk_ids:
