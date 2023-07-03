@@ -34,9 +34,10 @@ class TestFormating(unittest.TestCase):
             "'"+puncs+"'", "-"+puncs+"-", "_"+puncs+"_",
             # Symbols that correspond to pronunciated words
             "3$", "3€", "3£", "3%", "3×", "C++", "C#", "@user", "user@",
+            "&M", "M&",
             # Symbols in isolation
             "$", "€", "£", "%", "#", "+", "×", "@",
-            "&", # Only in isolation
+            "&",
             ]:
 
             self.assertEqual(
@@ -67,7 +68,6 @@ class TestFormating(unittest.TestCase):
             ("hello '", "hello"),
             ("3 $", "3"), ("3 %", "3"), ("3 €", "3"),
             ("3 🎵", "3"),
-            ("M&", "M"),
         ]:
             self.assertEqual(
                 removeWordPunctuations(input),
