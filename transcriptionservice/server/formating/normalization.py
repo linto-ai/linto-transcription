@@ -54,7 +54,7 @@ def cleanText(text: str, language: str, user_sub: list) -> str:
 # * misc (#, @). ex: C#, @user
 # and the space character (which can separate several series of punctuation marks)
 # Example of punctuations that can output models like Whisper: !,.:;?¿،؛؟…、。！，：？>/]:!(~\u200b[ா「«»“”"< ?;…,*」.)'
-_punctuation_regex = r"[^\w\p{Sc}" + re.escape("'-_%+×#@&") + "]"
+_punctuation_regex = r"[^\w\p{Sc}" + re.escape("'-_%+×#@&²³½") + "]"
 _leading_punctuations_regex = r"^" + _punctuation_regex + r"+"
 _trailing_punctuations_regex = _punctuation_regex + r"+$"
 

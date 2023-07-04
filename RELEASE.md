@@ -1,3 +1,6 @@
+# 1.2.9
+ - Preserve exponents ("²") in word normalization
+
 # 1.2.8
  - In full transcription: proper normalization of spaces before/after traditional punctuation marks (for French and English at least)
  - In word normalization: improve distinction of characters (word / punctuation / symbol that can be pronounced / garbage symbol)
