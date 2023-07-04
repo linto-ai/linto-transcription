@@ -1,4 +1,5 @@
 # 1.2.9
+ - VAD: Improve heuristics about audio segment durations to better adapt to Whisper setting (minDuration=30)
  - Preserve exponents ("²") in word normalization
 
 # 1.2.8
