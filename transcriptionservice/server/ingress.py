@@ -341,7 +341,7 @@ if __name__ == "__main__":
         {
             "bind": "{}:{}".format("0.0.0.0", 80),
             "workers": config.concurrency + 1,
-            "timeout": 3600 * 24,
+            # "timeout": 3600 * 24,
         },
     )
 

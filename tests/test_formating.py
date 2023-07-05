@@ -35,6 +35,7 @@ class TestFormating(unittest.TestCase):
             # Symbols that correspond to pronunciated words
             "3$", "3€", "3£", "3%", "3×", "C++", "C#", "@user", "user@",
             "&M", "M&",
+            "m²", "m½", "m³",
             # Symbols in isolation
             "$", "€", "£", "%", "#", "+", "×", "@",
             "&",

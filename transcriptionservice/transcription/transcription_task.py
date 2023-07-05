@@ -132,16 +132,34 @@ def transcription_task(self, task_info: dict, file_path: str):
             subfiles, total_duration = splitUsingTimestamps(
                 file_name, task_info["timestamps"]
             )
+            logging.info(f"Input file has been split into {len(subfiles)} subfiles")
         elif not config.vadConfig.isEnabled:
             logging.info(f"Split in one chunk (VAD disabled)")
             total_duration = getDuration(file_name)
             subfiles = [(file_name, 0.0, total_duration)]
         else:
             logging.info(f"Splitting using VAD ...")
-            subfiles, total_duration = splitFile(file_name, method=config.vadConfig.methodName, min_segment_duration=config.vadConfig.minDuration)
-            logging.info(f"Split in {len(subfiles)} chunks of around {config.vadConfig.minDuration} seconds")
-
-        logging.info(f"Input file has been split into {len(subfiles)} subfiles")
+            if config.vadConfig.minDuration:
+                # Values for ASR like Whisper which pad small segments anyway
+                kwargs = {
+                    "min_segment_duration": config.vadConfig.minDuration,
+                    "min_length": config.vadConfig.minDuration,
+                    # "min_silence": 0.6,
+                }
+            else:
+                # Historical values for Kaldi
+                kwargs = {
+                    "min_segment_duration": None,
+                    "min_length": 10,
+                    # "min_silence": 0.6,
+                }
+            subfiles, stats_duration = splitFile(
+                file_name,
+                method=config.vadConfig.methodName,
+                **kwargs,
+            )
+            total_duration = stats_duration["total"]
+            logging.info(f"Split in {len(subfiles)} chunks of around {config.vadConfig.minDuration} seconds ({', '.join([k+'='+str(round(v, 2)) for k,v in stats_duration.items()])})")
 
         # Progress monitoring
         speakers = None
@@ -347,8 +365,8 @@ def transcription_task_multi(self, task_info: dict, files_info: list):
         #    continue
 
         # Split file
-        subfiles, duration = splitFile(file_name)
-        total_duration += duration
+        subfiles, stats_duration = splitFile(file_name)
+        total_duration += stats_duration["total"]
         logging.info(
             "{} splitted into {} subfiles.".format(file_info["filename"], len(subfiles))
         )

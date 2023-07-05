@@ -1,3 +1,8 @@
+# 1.2.9
+ - Avoid a 1H timeout that was causing celery task to re-run (and fail)
+ - VAD: Improve heuristics about audio segment durations to better adapt to Whisper setting (minDuration=30)
+ - Preserve exponents ("²") in word normalization
+
 # 1.2.8
  - In full transcription: proper normalization of spaces before/after traditional punctuation marks (for French and English at least)
  - In word normalization: improve distinction of characters (word / punctuation / symbol that can be pronounced / garbage symbol)
@@ -13,7 +18,6 @@
  - Fix speaker segment splitted in two when diarization detects another speaker with no word assigned.
  - Fix a bug in the formatting progression "status" ("StepState.PENDING" -> "pending"),
     which was introduced because python version was not fixed in Dockerfile (python 3.11 changes behaviour when converting enum to string)
- - Increase timeout (1H -> 1 day)
 
 # 1.2.5
  - Add options for VAD (minimum duration of segments, ...)
