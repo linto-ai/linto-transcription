@@ -17,6 +17,8 @@ celery.conf.result_backend = "{}/1".format(broker_url)
 celery.conf.task_acks_late = False
 celery.conf.task_track_started = True
 celery.conf.broker_transport_options = {"visibility_timeout": float("inf")}
+# celery.conf.result_backend_transport_options = {"visibility_timeout": float("inf")}
+# celery.conf.result_expires = 3600 * 24
 
 # Queues
 celery.conf.update(
