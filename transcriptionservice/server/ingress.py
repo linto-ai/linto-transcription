@@ -238,6 +238,10 @@ def transcription():
         logger.debug(request.form.get("transcriptionConfig", {}))
         return "Failed to interpret transcription config", 400
 
+    # The hash depends on options (of what comes before STT)
+    file_hash = f"{file_hash} {timestamps if timestamps is not None else transcription_config.vadConfig.toJson()}".encode("utf8")
+    file_hash = fileHash(file_hash)
+
     requestlog(logger, request.remote_addr, transcription_config, file_hash, False)
 
     # Create ressource
