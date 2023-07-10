@@ -200,13 +200,15 @@ def transcription_task(self, task_info: dict, file_path: str):
     if available_transcription is None:
         transcriptions = []
         failed = False
+        transcription = None
         for jobId, offset, duration, subfile_path in transJobIds:
             if failed:
+                if subfile_path != file_name and os.path.exists(subfile_path):
+                    os.remove(subfile_path)
                 jobId.revoke()
-                os.remove(subfile_path)
                 continue
             transcription = jobId.get(disable_sync_subtasks=False)
-            if len(transJobIds) > 1:
+            if subfile_path != file_name and os.path.exists(subfile_path):
                 os.remove(subfile_path)
             if jobId.status == "FAILURE":
                 failed = True
@@ -293,7 +295,7 @@ def transcription_task(self, task_info: dict, file_path: str):
         try:
             os.remove(file_name)
         except Exception as e:
-            logging.warning("Failed to remove ressource {}".format(file_path))
+            logging.warning("Failed to remove ressource {}".format(file_name))
     progress.steps["postprocessing"].state = StepState.DONE
     return result_id
 

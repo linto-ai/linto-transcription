@@ -101,7 +101,7 @@ class TranscriptionResult:
         self, transcriptions: List[Tuple[dict, float]], spk_ids: list = None
     ) -> None:
         """Merges transcription results applying offsets"""
-        self.transcription_confidence = 0
+        self.transcription_confidence = 0.0
         num_words = 0
         for transcription, offset in transcriptions:
             for w in transcription["words"]:
@@ -110,7 +110,8 @@ class TranscriptionResult:
                 self.words.append(word)
                 self.transcription_confidence += word.conf
             num_words += len(transcription["words"])
-        self.transcription_confidence /= num_words
+        if num_words:
+            self.transcription_confidence /= num_words
         self.words.sort(key=lambda x: x.start)
 
         if spk_ids:
@@ -129,7 +130,7 @@ class TranscriptionResult:
             self.words.append(Word(**w))
         self.transcription_confidence = sum([w.conf for w in self.words]) / len(
             self.words
-        )
+        ) if len(self.words) else 0.0
 
     def setDiarizationResult(self, diarizationResult: Union[str, dict]):
         """Create speech segments using word and diarization data"""
