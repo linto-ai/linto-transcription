@@ -5,6 +5,9 @@ import os
 
 from celery.result import AsyncResult
 from celery.result import states as task_states
+from celery import current_app
+from celery.signals import after_task_publish
+
 from flask import Flask, json, request
 
 from transcriptionservice import logger
@@ -50,9 +53,11 @@ def jobstatus(jobid):
         task = AsyncResult(jobid)
     except Exception as error:
         return ({"state": "failed", "reason": error.message}, 500)
-    state = task.status
+    state = task.state
 
-    if state == task_states.STARTED:
+    if state == "SENT": # See below
+        return json.dumps({"state": "pending"}), 202
+    elif state == task_states.STARTED:
         return (
             json.dumps({"state": "started", "steps": task.info.get("steps", {})}),
             202,
@@ -61,19 +66,23 @@ def jobstatus(jobid):
         result_id = task.get()
         return json.dumps({"state": "done", "result_id": result_id}), 201
     elif state == task_states.PENDING:
-        return (
-            json.dumps(
-                {
-                    "state": "pending",
-                }
-            ),
-            404,
-        )
+        return json.dumps({"state": "failed", "reason": f"Unknown jobid {jobid}"}), 404
     elif state == task_states.FAILURE:
         return json.dumps({"state": "failed", "reason": str(task.result)}), 500
     else:
-        return "Task returned an unknown state", 400
+        return json.dumps({"state": "failed", "reason": f"Task returned an unknown state {state}"}), 500
 
+# This is to distinguish between a pending state meaning that the task is unknown,
+# and a pending state meaning that the task is waiting for a worker to start.
+# see https://stackoverflow.com/questions/9824172/find-out-whether-celery-task-exists
+@after_task_publish.connect
+def update_sent_state(sender=None, headers=None, **kwargs):
+    # the task may not exist if sent using `send_task` which
+    # sends tasks by name, so fall back to the default result backend
+    # if that is the case.
+    task = current_app.tasks.get(sender)
+    backend = task.backend if task else current_app.backend
+    backend.store_result(headers['id'], None, "SENT")
 
 @app.route("/results/<result_id>", methods=["GET"])
 def results(result_id):
