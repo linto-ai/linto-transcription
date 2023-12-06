@@ -98,32 +98,30 @@ def vadCutIndexes(
 
     # Determines cut indexes in the middle of silence windows
     # Ignore silence windows which length are < min_silence_frame
-    is_speech = vad_res[0]
+    was_speech = vad_res[0]
     sil_start_i = 0
     speech_start_i = 0
     previous_candidate = None
     cut_indexes = []
 
-    for i, v in enumerate(vad_res):
-        if v: # Speech
-            if not is_speech:
-                candidate = int(np.mean([sil_start_i, i]))
-                is_silence_long = (i - sil_start_i > min_silence_frame)
-                is_speech_long = (max_speech_frame and (i - speech_start_i > max_speech_frame))
+    for i, is_speech in enumerate(vad_res):
+        if is_speech and not was_speech:  # Start of speech
+            candidate = int(np.mean([sil_start_i, i]))
+            is_silence_long = (i - sil_start_i > min_silence_frame)
+            is_speech_long = (max_speech_frame and (i - speech_start_i > max_speech_frame))
+            if is_silence_long or is_speech_long:
+                if is_speech_long and previous_candidate:
+                    candidate = previous_candidate
+                cut_indexes.append(candidate)
+                speech_start_i = candidate
+                previous_candidate = None
+            else:
+                previous_candidate = candidate
+            was_speech = True
 
-                if is_silence_long or is_speech_long:
-                    if is_speech_long and previous_candidate:
-                        candidate = previous_candidate
-                    cut_indexes.append(candidate)
-                    speech_start_i = candidate
-                    previous_candidate = None
-                else:
-                    previous_candidate = candidate
-                is_speech = True
-        else: # Silence
-            if is_speech:
-                is_speech = False
-                sil_start_i = i
+        elif not is_speech and was_speech:  # Start of silence
+            was_speech = False
+            sil_start_i = i
 
     # Returns cut_indexes as list
     return (np.array(cut_indexes) * chunk_size).astype(np.int32).tolist()
