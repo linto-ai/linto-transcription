@@ -73,10 +73,12 @@ def vadCutIndexes(
     chunk_length: float = 0.03,
     mode: int = 1,
     min_silence: float = 0.6,
+    max_segment_duration: float = None,
     method: str = "WebRTC",
 ):
     """Apply VAD on the signal and returns cut indexes located between speech segments"""
     min_silence_frame = min_silence / chunk_length
+    max_speech_frame = max_segment_duration / chunk_length if max_segment_duration else None
 
     method = validate_vad_method(method)
 
@@ -98,15 +100,27 @@ def vadCutIndexes(
     # Ignore silence windows which length are < min_silence_frame
     is_speech = vad_res[0]
     sil_start_i = 0
+    speech_start_i = 0
+    previous_candidate = None
     cut_indexes = []
+
     for i, v in enumerate(vad_res):
-        if v:
+        if v: # Speech
             if not is_speech:
-                sil_stop_i = i
-                if sil_stop_i - sil_start_i > min_silence_frame:
-                    cut_indexes.append(int(np.mean([sil_start_i, sil_stop_i])))
+                candidate = int(np.mean([sil_start_i, i]))
+                is_silence_long = (i - sil_start_i > min_silence_frame)
+                is_speech_long = (max_speech_frame and (i - speech_start_i > max_speech_frame))
+
+                if is_silence_long or is_speech_long:
+                    if is_speech_long and previous_candidate:
+                        candidate = previous_candidate
+                    cut_indexes.append(candidate)
+                    speech_start_i = candidate
+                    previous_candidate = None
+                else:
+                    previous_candidate = candidate
                 is_speech = True
-        else:
+        else: # Silence
             if is_speech:
                 is_speech = False
                 sil_start_i = i
@@ -120,6 +134,7 @@ def splitFile(
     method: str = "WebRTC",
     min_length: float = 10,
     min_segment_duration: float = None,
+    max_segment_duration: float = None,
     min_silence: float = 0.6,
     around_min_segment_duration: bool = False,
     ) -> Tuple[List[Tuple[str, float, float]], float]:
@@ -135,6 +150,10 @@ def splitFile(
         around_min_segment_duration (bool): If True, segments can be kept just before they reach min_segment_duration
     """
 
+    if min_segment_duration and max_segment_duration:
+        if min_segment_duration > max_segment_duration:
+            raise ValueError(f"min_segment_duration ({min_segment_duration}) > max_segment_duration ({max_segment_duration})")
+
     # TODO: factorize with splitUsingTimestamps
 
     content = wavio.read(file_path)
@@ -146,8 +165,9 @@ def splitFile(
         return _with_stat_durations([(file_path, 0.0, len(audio) / sr)])
 
     # Get cut indexes based on vad
-    cut_indexes = vadCutIndexes(audio, sr, method=method, min_silence=min_silence)
+    cut_indexes = vadCutIndexes(audio, sr, method=method, min_silence=min_silence, max_segment_duration=max_segment_duration)
 
+    # TODO: use "min_segment_duration" in vadCutIndexes()
     if min_segment_duration:
         min_segment_samples = min_segment_duration * sr
         new_cut_indexes = []

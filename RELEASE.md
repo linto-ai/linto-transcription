@@ -1,4 +1,5 @@
 # 1.2.10
+ - Add heuristics to avoid too long speech segment sent to STT (limit risk of memory overflow)
  - Fix failure with token "- Et"
 
 # 1.2.9
