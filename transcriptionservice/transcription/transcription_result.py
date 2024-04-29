@@ -208,7 +208,7 @@ class TranscriptionResult:
         """Applies word placement rules and decides if the word belong to the current_segment (True) or to the next (False)"""
         if diarization_index == len(self.diarizationSegments) - 1:
             # Stay on current segment if it is the last one
-            return False
+            return True
 
         word_start = self.words[word_index].start
         word_end = self.words[word_index].end
@@ -222,14 +222,14 @@ class TranscriptionResult:
         if word_start >= current_diarization_seg.seg_end:
             return False
 
-        # Word straddling two segments
+        # Otherwise (following), word straddling two segments
 
         if not word_index:
             # Assign first word to first segment
-            return False
+            return True
         if word_index == len(self.words) - 1:
             # Assign last word to last segment
-            return True
+            return False
 
         # Decide based on the distance with the previous and the next words
         # if one exceeds 0.5 seconds
@@ -237,6 +237,12 @@ class TranscriptionResult:
         gap_next_word = self.words[word_index + 1].start - word_end
         if max(gap_previous_word, gap_next_word) > 0.5:
             return gap_previous_word <= gap_next_word
+
+        if word_index > 0:
+            # If the previous word ends with a punctuation, cut there
+            previous_word = self.words[word_index - 1]
+            if previous_word.word and previous_word.word[-1] in ".!?":
+                return False
 
         # Otherwise, look at what happens with the next segment
         next_diarization_seg = self.diarizationSegments[diarization_index + 1]
