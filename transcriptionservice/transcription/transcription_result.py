@@ -210,8 +210,9 @@ class TranscriptionResult:
             # Stay on current segment if it is the last one
             return True
 
-        word_start = self.words[word_index].start
-        word_end = self.words[word_index].end
+        word = self.words[word_index]
+        word_start = word.start
+        word_end = word.end
         current_diarization_seg = self.diarizationSegments[diarization_index]
 
         # Word completely within current segment
@@ -243,6 +244,8 @@ class TranscriptionResult:
             previous_word = self.words[word_index - 1]
             if previous_word.word and previous_word.word[-1] in ".!?":
                 return False
+            elif word.word and word.word[0] in ".!?":
+                return True
 
         # Otherwise, look at what happens with the next segment
         next_diarization_seg = self.diarizationSegments[diarization_index + 1]
