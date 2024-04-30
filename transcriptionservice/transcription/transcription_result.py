@@ -203,9 +203,19 @@ class TranscriptionResult:
                 self.segments[-1].words += current_words
 
     def _resolveWordSegment(
-        self, word_index: int, diarization_index: int
+        self,
+        word_index: int,
+        diarization_index: int,
+        precision: float = 0.25,
     ) -> bool:
-        """Applies word placement rules and decides if the word belong to the current_segment (True) or to the next (False)"""
+        """
+        Applies word placement rules and decides if the word belong to the current_segment (True) or to the next (False)
+
+        Args:
+            word_index (int): Index of the word to place
+            diarization_index (int): Index of the current diarization segment
+            precision (float): Precision to decide if a word is within a segment (in seconds)
+        """
         if diarization_index == len(self.diarizationSegments) - 1:
             # Stay on current segment if it is the last one
             return True
@@ -216,11 +226,11 @@ class TranscriptionResult:
         current_diarization_seg = self.diarizationSegments[diarization_index]
 
         # Word completely within current segment
-        if word_end <= current_diarization_seg.seg_end:
+        if word_end <= current_diarization_seg.seg_end - precision:
             return True
 
         # Word completely outside current segment
-        if word_start >= current_diarization_seg.seg_end:
+        if word_start >= current_diarization_seg.seg_end + precision:
             return False
 
         # Otherwise (following), word straddling two segments
@@ -233,10 +243,10 @@ class TranscriptionResult:
             return False
 
         # Decide based on the distance with the previous and the next words
-        # if one exceeds 0.5 seconds
+        # if one exceeds a certain threshold seconds
         gap_previous_word = word_start - self.words[word_index - 1].end
         gap_next_word = self.words[word_index + 1].start - word_end
-        if max(gap_previous_word, gap_next_word) > 0.5:
+        if max(gap_previous_word, gap_next_word) >= precision:
             return gap_previous_word <= gap_next_word
 
         if word_index > 0:
@@ -244,7 +254,7 @@ class TranscriptionResult:
             previous_word = self.words[word_index - 1]
             if previous_word.word and previous_word.word[-1] in ".!?":
                 return False
-            elif word.word and word.word[0] in ".!?":
+            elif word.word and word.word[-1] in ".!?":
                 return True
 
         # Otherwise, look at what happens with the next segment
@@ -266,7 +276,7 @@ class TranscriptionResult:
         #     return False
 
         # Assign to the segment with the higher overlap
-        return overlap_previous < overlap_next
+        return overlap_previous > overlap_next
 
     def setNoDiarization(self):
         """Convert word data into a speech segment when there is no diarization"""
