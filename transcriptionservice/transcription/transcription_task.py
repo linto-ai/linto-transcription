@@ -106,7 +106,7 @@ def transcription_task(self, task_info: dict, file_path: str):
     file_name = transcoding(file_path)
 
     # Check for available transcription
-    logging.info(f"Checking for available transcription")
+    logging.info(f"Checking for available transcription for {task_info['hash']}")
 
     if not task_info["timestamps"]:
         available_transcription = db_client.fetch_transcription(task_info["hash"])
