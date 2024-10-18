@@ -2,7 +2,7 @@ version: "3.7"
 
 services:
   transcription-service:
-    image: lintoai/linto-transcription-service:1.2.11
+    image: lintoai/linto-transcription-service:latest-unstable
     volumes:
       - $SHARED_FOLDER/audio:/opt/audio
     env_file: .env
