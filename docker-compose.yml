@@ -1,8 +1,8 @@
-version: '3.7'
+version: "3.7"
 
 services:
   transcription-service:
-    image: transcription_service:1.2.3
+    image: lintoai/linto-transcription-service:1.2.11
     volumes:
       - $SHARED_FOLDER/audio:/opt/audio
     env_file: .env
@@ -14,6 +14,3 @@ services:
 networks:
   transcription-net:
     external: true
-
-
-

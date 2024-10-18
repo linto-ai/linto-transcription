@@ -1,4 +1,4 @@
-# LinTO Platform Transcription service
+# LinTO Transcription service
 ## Description
 The transcription service is the API for requesting transcriptions.
 
@@ -38,8 +38,8 @@ To use the transcription service you must have at least:
 * A mongo DB running at `MONGO_HOST:MONGO_PORT`.
 
 Optionnaly, for diarization or punctuation the following are needed:
-* One or multiple instances of [linto-diarization-worker](https://github.com/linto-ai/linto-platform-diarization) > 1.2.0 for speaker diarization configured on the same service broker (LANGUAGE must be compatible).
-* One or multiple instances of [linto-punctuation-worker](https://github.com/linto-ai/linto-platform-punctuation) > 1.2.0 for text punctuation configured on the same service broker (LANGUAGE must be compatible).
+* One or multiple instances of [linto-diarization-worker](https://github.com/linto-ai/linto-diarization) > 1.2.0 for speaker diarization configured on the same service broker (LANGUAGE must be compatible).
+* One or multiple instances of [linto-punctuation-worker](https://github.com/linto-ai/linto-punctuation) > 1.2.0 for text punctuation configured on the same service broker (LANGUAGE must be compatible).
 
 To share audio files across the different services they must be configured with the same shared volume `RESSOURCE_FOLDER`.
 
@@ -47,7 +47,7 @@ To share audio files across the different services they must be configured with 
 ### Using docker run
 1- First build the image:
 ```bash
-cd linto-platform-transcription-service &&
+cd linto-transcription-service &&
 docker build . -t transcription_service
 ```
 2- Create and fill the .env
