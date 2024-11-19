@@ -25,6 +25,9 @@ logger = logging.getLogger("__transcription-service__")
 
 
 def textToNum(text: str, language: str) -> str:
+    if language == "*":
+        logger.warning("Language not specified, not converting numbers to digits")
+        return text
     # Note: we could add symbols conversions as well (e.g. "euros" -> "€", "pour cent" -> "%", etc.)
     #       but this seems awkward and prone to downstream bugs
     return "\n".join([alpha2digit(elem, language[:2]) for elem in text.split("\n")])
