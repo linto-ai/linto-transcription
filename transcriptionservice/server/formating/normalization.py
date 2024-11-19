@@ -28,10 +28,22 @@ def textToNum(text: str, language: str) -> str:
     if language == "*":
         logger.warning("Language not specified, not converting numbers to digits")
         return text
+    if len(language) < 2:
+        raise ValueError(f"Invalid language code '{language}'")
+    lang = language[:2].lower()
     # Note: we could add symbols conversions as well (e.g. "euros" -> "€", "pour cent" -> "%", etc.)
     #       but this seems awkward and prone to downstream bugs
-    return "\n".join([alpha2digit(elem, language[:2]) for elem in text.split("\n")])
+    return "\n".join([_alpha2digit(elem, lang) for elem in text.split("\n")])
 
+def _alpha2digit(text: str, language: str) -> str:
+    try:
+        return alpha2digit(text, language)
+    except Exception as err:
+        text_small = text
+        if len(text) > 200:
+            text_small = text[:100] + "..." + text[-100:]
+        logger.error(f"Error converting '{text_small}' to digits: {err}")
+        raise RuntimeError(f"Error converting '{text}' to digits with {language=}") from err
 
 def cleanText(text: str, language: str, user_sub: list) -> str:
 
