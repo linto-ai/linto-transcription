@@ -1,3 +1,6 @@
+# 1.2.12
+ - Do not fail when asking to convert numbers with env. variable LANGUAGE=*
+
 # 1.2.11
  - Improve heuristics to merge transcription and diarization results (for words in between two speaker turns)
 
