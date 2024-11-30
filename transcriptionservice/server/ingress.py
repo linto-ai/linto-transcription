@@ -52,7 +52,8 @@ def jobstatus(jobid):
     try:
         task = AsyncResult(jobid)
     except Exception as error:
-        return ({"state": "failed", "reason": error.message}, 500)
+        import traceback
+        return ({"state": "failed", "reason": f"{str(error)}\n\n{traceback.format_exc()}"}, 500)
     state = task.state
 
     if state == "SENT": # See below
@@ -189,7 +190,7 @@ def transcription_multi():
     task = transcription_task_multi.apply_async(
         queue=config.service_name + "_requests", args=[task_info, audios]
     )
-    logger.debug(f"Create trancription task with id {task.id}")
+    logger.debug(f"Create transcription task with id {task.id}")
     return (
         json.dumps({"jobid": task.id})
         if expected_format == "application/json"
@@ -274,7 +275,7 @@ def transcription():
     task = transcription_task.apply_async(
         queue=config.service_name + "_requests", args=[task_info, file_path]
     )
-    logger.debug(f"Create trancription task with id {task.id}")
+    logger.debug(f"Create transcription task with id {task.id}")
     # Forced synchronous
     if force_sync:
         result_id = task.get()

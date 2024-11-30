@@ -50,6 +50,13 @@ def transcription_task(self, task_info: dict, file_path: str):
     - "keep_audio": If False, the audio file is deleted after the task.
     - "timestamps" : (Optionnal) Audio spliting timestamps
     """
+    try:
+        return transcription_task_(self, task_info, file_path)
+    except Exception as error:
+        import traceback
+        raise Exception(f"Task failed: {str(error)}\n\n{traceback.format_exc()}")
+
+def transcription_task_(self, task_info: dict, file_path: str):
     # Logging task
     logging.basicConfig(
         filename=f"/usr/src/app/logs/{self.request.id}.txt",
