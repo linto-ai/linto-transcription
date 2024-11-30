@@ -40,6 +40,7 @@ class DiarizationSegment:
 class SpeechSegment:
     speaker_id: str = None
     words: list = field(default_factory=list)
+    language: str = None
     processed_segment = None
 
     def toString(self, include_spkid: bool = False, spk_sep: str = ":"):
@@ -72,7 +73,7 @@ class SpeechSegment:
 
     @property
     def json(self) -> dict:
-        return {
+        res = {
             "spk_id": self.speaker_id,
             "start": self.start,
             "end": self.end,
@@ -83,6 +84,9 @@ class SpeechSegment:
             else self.raw_segment,
             "words": [w.json for w in self.words],
         }
+        if self.language:
+            res["language"] = self.language
+        return res
 
 
 class TranscriptionResult:
@@ -94,6 +98,7 @@ class TranscriptionResult:
         self.words = []
         self.segments = []
         self.diarizationSegments = []
+        self.words_language = None
         if transcriptions:
             self._mergeTranscription(transcriptions, spk_ids)
 
@@ -103,11 +108,22 @@ class TranscriptionResult:
         """Merges transcription results applying offsets"""
         self.transcription_confidence = 0.0
         num_words = 0
+        has_language_detection = None
         for transcription, offset in transcriptions:
+            language = transcription.get("language")
+            if has_language_detection is None:
+                has_language_detection = language is not None
+                if has_language_detection:
+                    self.words_language = []
+            else:
+                if has_language_detection != (language is not None):
+                    raise ValueError("Language detection should be consistent")
             for w in transcription["words"]:
                 word = Word(**w)
                 word.apply_offset(offset)
                 self.words.append(word)
+                if has_language_detection:
+                    self.words_language.append(language)
                 self.transcription_confidence += word.conf
             num_words += len(transcription["words"])
         if num_words:
@@ -117,20 +133,22 @@ class TranscriptionResult:
         if spk_ids:
             for (transcription, offset), id in zip(transcriptions, spk_ids):
                 seg_words = []
+                language = transcription.get("language")
                 for w in transcription["words"]:
                     word = Word(**w)
                     word.apply_offset(offset)
                     seg_words.append(word)
                 if seg_words:
-                    self.segments.append(SpeechSegment(id, seg_words))
+                    self.segments.append(SpeechSegment(id, seg_words, language))
             self.segments = sorted(self.segments, key=lambda seg: seg.start)
 
-    def setTranscription(self, words: List[dict]):
+    def setTranscription(self, words: List[dict], words_language: List[dict]):
         for w in words:
             self.words.append(Word(**w))
         self.transcription_confidence = sum([w.conf for w in self.words]) / len(
             self.words
         ) if len(self.words) else 0.0
+        self.words_language = words_language
 
     def setDiarizationResult(self, diarizationResult: Union[str, dict]):
         """Create speech segments using word and diarization data"""
@@ -152,7 +170,14 @@ class TranscriptionResult:
         self.diarizationSegments = [self.diarizationSegments[i] for i in range(len(self.diarizationSegments)) \
             if i == 0 or self.diarizationSegments[i].seg_end > self.diarizationSegments[i-1].seg_end]
 
-        self.words.sort(key=lambda x: x.start)
+        # Sort words by start time
+        if self.words_language is None:
+            self.words.sort(key=lambda x: x.start)
+        else:
+            assert len(self.words) == len(self.words_language)
+            self.words, self.words_language = zip(*sorted(
+                zip(self.words, self.words_language), key=lambda x: x[0].start
+            ))
 
         # Interpolates speaker change timestamps
         # Starts the first segment at 0.0, ends the last segment at max(word.ends)
@@ -177,6 +202,7 @@ class TranscriptionResult:
         previous_id = None
         current_id = self.diarizationSegments[seg_index].spk_id
         current_words = []
+        current_words_languages = []
 
         # Iterate over segments and words to create speech segments
         for i, word in enumerate(self.words):
@@ -189,16 +215,29 @@ class TranscriptionResult:
                     break
                 if len(current_words):
                     if current_id != previous_id: # Flush current segment
-                        self.segments.append(SpeechSegment(current_id, current_words))
+                        self.segments.append(
+                            SpeechSegment(
+                                current_id, current_words,
+                                language=self.getMajorityLanguage(current_words_languages)
+                            )
+                        )
                     else: # Merge with previous segment
                         self.segments[-1].words += current_words
                     previous_id = current_id
                 current_id = next_id
                 current_words = []
+                current_words_languages = []
             current_words.append(word)
+            if self.words_language:
+                current_words_languages.append(self.words_language[i])
         if len(current_words):
             if current_id != previous_id: # Flush current segment
-                self.segments.append(SpeechSegment(current_id, current_words))
+                self.segments.append(
+                    SpeechSegment(
+                        current_id, current_words,
+                        language=self.getMajorityLanguage(current_words_languages)
+                    )
+                )
             else: # Merge with previous segment
                 self.segments[-1].words += current_words
 
@@ -280,7 +319,13 @@ class TranscriptionResult:
 
     def setNoDiarization(self):
         """Convert word data into a speech segment when there is no diarization"""
-        self.segments.append(SpeechSegment(None, self.words))
+        self.segments.append(SpeechSegment(None, self.words, self.getMajorityLanguage(self.words_language)))
+
+    def getMajorityLanguage(self, words_languages: List[str]) -> str:
+        """Get the majority language from a list of languages"""
+        if not words_languages:
+            return None
+        return max(set(words_languages), key=words_languages.count)
 
     def setProcessedSegment(self, processed_segments: Union[List[str], str]):
         """Add the processed_segment value to segments"""
@@ -311,7 +356,8 @@ class TranscriptionResult:
         result.transcription_confidence = resultDict["confidence"]
         for segment in resultDict["segments"]:
             seg = SpeechSegment(
-                segment["spk_id"], [Word(**w) for w in segment["words"]]
+                segment["spk_id"], [Word(**w) for w in segment["words"]],
+                language=segment.get("language")
             )
             seg.processed_segment = segment["segment"]
             result.segments.append(seg)
