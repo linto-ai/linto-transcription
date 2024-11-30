@@ -67,17 +67,15 @@ def formatResult(
         return final_result
 
     elif return_format == "text/vtt":
-        # TODO: pass "fulltext_cleaner" instead of "convert_numbers"
         t_result = TranscriptionResult.fromDict(result)
         return Subtitles(t_result, language).toVTT(
-            return_raw=raw_return, convert_numbers=convert_numbers, user_sub=user_sub
+            return_raw=raw_return, text_cleaner=fulltext_cleaner, user_sub=user_sub
         )
 
     elif return_format == "text/srt":
-        # TODO: pass "fulltext_cleaner" instead of "convert_numbers"
         t_result = TranscriptionResult.fromDict(result)
         return Subtitles(t_result, language).toSRT(
-            return_raw=raw_return, convert_numbers=convert_numbers, user_sub=user_sub
+            return_raw=raw_return, text_cleaner=fulltext_cleaner, user_sub=user_sub
         )
 
     else:

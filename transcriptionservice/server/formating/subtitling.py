@@ -19,10 +19,10 @@ class SubtitleItem:
         self.end = max([w.end for w in self.words])
 
     def formatUtterance(
-        self, utterance: str, convert_numbers: bool, user_sub: List[Tuple[str, str]]
+        self, utterance: str, text_cleaner, user_sub: List[Tuple[str, str]]
     ) -> str:
-        if convert_numbers:
-            utterance = textToNum(utterance, self.language)
+        if text_cleaner:
+            utterance = text_cleaner(utterance)
         return cleanText(utterance, self.language, user_sub)
 
     def toSRT(
@@ -30,7 +30,7 @@ class SubtitleItem:
         index_start: int = 0,
         max_char_line: int = 40,
         return_raw: bool = False,
-        convert_numbers: bool = False,
+        text_cleaner = lambda x: x,
         user_sub: List[Tuple[str, str]] = [],
         max_lines: int = 2,
         display_spk: bool = False,
@@ -50,7 +50,7 @@ class SubtitleItem:
                 c_l += 1
                 c_w = 0
                 if c_l >= max_lines:
-                    final_item = self.formatUtterance(current_item, convert_numbers, user_sub)
+                    final_item = self.formatUtterance(current_item, text_cleaner, user_sub)
                     output += "{}\n{} --> {}\n{}\n\n".format(
                         index_start + i + 1,
                         self.timeStampSRT(words[0].start),
@@ -65,7 +65,7 @@ class SubtitleItem:
             c_w += len(word.word if return_raw else final_word)
             finals.append(word.word if return_raw else final_word)
         current_item += "{}\n".format(" ".join(finals))
-        final_item = self.formatUtterance(current_item, convert_numbers, user_sub)
+        final_item = self.formatUtterance(current_item, text_cleaner, user_sub)
         output += "{}\n{} --> {}\n{}\n\n".format(
             index_start + i + 1,
             self.timeStampSRT(words[0].start),
@@ -77,7 +77,7 @@ class SubtitleItem:
     def toVTT(
         self,
         return_raw: bool = False,
-        convert_numbers: bool = False,
+        text_cleaner = None,
         user_sub: List[Tuple[str, str]] = [],
         max_char_line: int = 40,
         max_line: int = 2,
@@ -95,7 +95,7 @@ class SubtitleItem:
                         self.timeStampVTT(words[-1].end),
                     )
                     final_item = self.formatUtterance(
-                        "{}\n\n".format(" ".join(finals)), convert_numbers, user_sub
+                        "{}\n\n".format(" ".join(finals)), text_cleaner, user_sub
                     )
                     output += final_item
                     words = []
@@ -108,7 +108,7 @@ class SubtitleItem:
                 self.timeStampVTT(words[0].start), self.timeStampVTT(words[-1].end)
             )
             final_item = self.formatUtterance(
-                "{}\n\n".format(" ".join(finals)), convert_numbers, user_sub
+                "{}\n\n".format(" ".join(finals)), text_cleaner, user_sub
             )
             output += final_item
             return output
@@ -118,11 +118,11 @@ class SubtitleItem:
         if return_raw:
             output += "{}\n\n".format(
                 self.formatUtterance(
-                    " ".join([w.word for w in self.words]), convert_numbers, user_sub
+                    " ".join([w.word for w in self.words]), text_cleaner, user_sub
                 )
             )
         else:
-            output += "{}\n\n".format(self.formatUtterance(str(self), convert_numbers, user_sub))
+            output += "{}\n\n".format(self.formatUtterance(str(self), text_cleaner, user_sub))
         return output
 
     def timeStampSRT(self, t_str) -> str:
@@ -186,7 +186,7 @@ class Subtitles:
     def toSRT(
         self,
         return_raw: bool = False,
-        convert_numbers: bool = False,
+        text_cleaner = None,
         user_sub: List[Tuple[str, str]] = [],
     ) -> str:
         output = ""
@@ -195,7 +195,7 @@ class Subtitles:
             r, n = item.toSRT(
                 i,
                 return_raw=return_raw,
-                convert_numbers=convert_numbers,
+                text_cleaner=text_cleaner,
                 user_sub=user_sub,
             )
             output += r
@@ -205,14 +205,14 @@ class Subtitles:
     def toVTT(
         self,
         return_raw: bool = False,
-        convert_numbers: bool = False,
+        text_cleaner = None,
         user_sub: List[Tuple[str, str]] = [],
     ) -> str:
         output = "WEBVTT Kind: captions; Language: {}\n\n".format(self.language)
         for item in self.subtitleItems:
             output += item.toVTT(
                 return_raw=return_raw,
-                convert_numbers=convert_numbers,
+                text_cleaner=text_cleaner,
                 user_sub=user_sub,
             )
         return output
