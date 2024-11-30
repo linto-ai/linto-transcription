@@ -14,14 +14,14 @@ The service allows you to:
 * [Deploy](#deploy)
   * [Using docker run](#using-docker-run)
   * [Using docker compose](#using-docker-compose)
-  * [Environement Variables](#environement-variables)
+  * [Environment Variables](#environment-variables)
 * [API](#api)
-  * [/list-services](#environement-variables)
+  * [/list-services](#environment-variables)
       * [Subservice resolution](#subservice-resolution)
   * [/transcribe](#transcribe)
-    * [Transcription config](#transcription-config)
-  * [/transcribe-multi](#transcribe-multi)
-    * [MultiTranscription config](#multitranscription-config)
+    * [Transcription configuration](#transcription-configuration)
+  <!-- * [/transcribe-multi](#transcribe-multi)
+    * [MultiTranscription config](#multitranscription-config) -->
   * [/job/{jobid}](#job)
   * [/results/{result_id}](#results)
     * [Transcription results](#transcription-results)
@@ -33,13 +33,13 @@ The service allows you to:
 
 ## Prerequisites
 To use the transcription service you must have at least:
-* One or multiple instances of [linto-stt](https://github.com/linto-ai/linto-stt) running and configured with the same `SERVICE_NAME`.
+* One or multiple instances of [linto-stt](https://github.com/linto-ai/linto-stt) running and configured with the same `SERVICE_NAME` (`LANGUAGE` must be compatible).
 * A REDIS broker running at `SERVICES_BROKER`.
 * A mongo DB running at `MONGO_HOST:MONGO_PORT`.
 
 Optionnaly, for diarization or punctuation the following are needed:
-* One or multiple instances of [linto-diarization-worker](https://github.com/linto-ai/linto-diarization) > 1.2.0 for speaker diarization configured on the same service broker (LANGUAGE must be compatible).
-* One or multiple instances of [linto-punctuation-worker](https://github.com/linto-ai/linto-punctuation) > 1.2.0 for text punctuation configured on the same service broker (LANGUAGE must be compatible).
+* One or multiple instances of [linto-diarization-worker](https://github.com/linto-ai/linto-diarization) > 1.2.0 for speaker diarization configured on the same service broker (`LANGUAGE` must be compatible).
+* One or multiple instances of [linto-punctuation-worker](https://github.com/linto-ai/linto-punctuation) > 1.2.0 for text punctuation configured on the same service broker (`LANGUAGE` must be compatible).
 
 To share audio files across the different services they must be configured with the same shared volume `RESSOURCE_FOLDER`.
 
@@ -54,7 +54,7 @@ docker build . -t transcription_service
 ```bash
 cp .envdefault .env
 ```
-Fill the .env with the value described bellow [Environement Variables](#environement-variables)
+Fill the .env with the value described below [Environment Variables](#environment-variables)
 
 2- Launch a container:
 ```bash
@@ -72,29 +72,29 @@ Fill ```SERVING_PORT```, ```YOUR_SHARED_FOLDER``` with your values.
 ```bash
 cp .envdefault .env
 ```
-Fill the .env with the value described bellow [Environement Variables](#environement-variables)
+Fill the .env with the value described below [Environment Variables](#environment-variables)
 
 2- Compose
 ```bash
 docker-compose up .
 ```
 
-### Environement Variables
+### Environment Variables
 
 | Env variable| Description | Example |
 |:-|:-|:-|
-|SERVICE_NAME| STT service name, use to connect to the proper redis channel and mongo collection|my_stt_service|
-|LANGUAGE| Language code as a BCP-47 code | fr-FR |
-|KEEP_AUDIO|Either audio files are kept after request|1 (true) / 0 (false)|
-|CONCURRENCY|Number of workers (default 10)|10|
-|SERVICES_BROKER|Message broker address|redis://broker_address:6379|
-|BROKER_PASS|Broker Password| Password|
-|MONGO_HOST|MongoDB results url|my-mongo-service|
-|MONGO_PORT|MongoDB results port|27017|
-|RESOLVE_POLICY| Subservice resolve policy (default ANY) * |ANY \| DEFAULT \| STRICT |
-|<SERVICE_TYPE>_DEFAULT| Default serviceName for subtask <SERVICE_TYPE> * | punctuation-1 |
+|`LANGUAGE`| Language code (BCP-47 code) used for text normalization (digits to words, punctuation normalization, ...) | `fr-FR` |
+|`KEEP_AUDIO`|Either audio files are kept after request|`1` (true) \| `0` (false)|
+|`CONCURRENCY`|Number of workers (default 10)|`10`|
+|`SERVICE_NAME`| STT service name, use to connect to the proper redis channel and mongo collection|`my_stt_service`|
+|`SERVICES_BROKER`|Message broker address|`redis://broker_address:6379`|
+|`BROKER_PASS`|Broker Password| `Password`|
+|`MONGO_HOST`|MongoDB results url|`my-mongo-service`|
+|`MONGO_PORT`|MongoDB results port|`27017`|
+|`RESOLVE_POLICY`| Subservice resolve policy (default ANY) * | `ANY` \| `DEFAULT` \| `STRICT` |
+|<`SERVICE_TYPE`>`_DEFAULT`| Default serviceName for subtask <`SERVICE_TYPE`> * | `punctuation-1` |
 
-*: See [Subservice Resolution](#subservice-resolution)
+*: See [Subservice resolution](#subservice-resolution)
 
 ## API
 The transcription service offers a transcription API REST to submit transcription requests.
@@ -160,7 +160,7 @@ There is 3 policies to resolve service names:
 * DEFAULT: Use the service default subservice (must be declared)
 * STRICT: If the service is not specified, raise an error.
 
-Resolve policy is declared at launch using the RESOLVE_POLICY environement variable: ANY | DEFAULT | STRICT (default ANY).
+Resolve policy is declared at launch using the RESOLVE_POLICY environment variable: ANY | DEFAULT | STRICT (default ANY).
 
 Default service names must be declared at launch: <SERVICE_TYPE>_DEFAULT. E.g. The default punctuation subservice is "punctuation-1", `PUNCTUATION_DEFAULT=punctuation1`.
 
@@ -183,8 +183,8 @@ Response format can be application/json or text/plain as specified in the accept
 
 |Form Parameter| Description | Required |
 |:-|:-|:-|
-|transcriptionConfig|(object optionnal) A transcriptionConfig Object describing transcription parameters | See [Transcription config](#transcription-config) |
-|force_sync|(boolean optionnal) If True do a synchronous request | [true \| **false** \| null] |
+|transcriptionConfig|(object optionnal) A transcription configuration describing transcription parameters, in JSON format | See [Transcription configuration](#transcription-configuration) |
+|force_sync|(optional boolean, default=false) If True do a synchronous request | `true` \| `false` \| `null` |
 
 If the request is accepted, answer should be ```201``` with a json or text response containing the jobid.
 
@@ -208,34 +208,44 @@ Additionnaly a timestamps file can be uploaded alongside the audio file containi
 7.05 13.0
 ```
 
-#### Transcription config
-The transcriptionConfig object describe the transcription parameters and flags of the request. It is structured as follows:
+#### Transcription configuration
+The transcription config describes the transcription input parameters and flags of the request.
+It permits to set:
+* Target language for the transcript,
+* Voice Activity Detection (VAD) parameters,
+* Diarization parameters,
+* Punctuation parameters.
+
+It is structured as follows:
 ```json
 {
+  "language": "fr",             # Target language for the transcript (default: null).
   "vadConfig": {
-    "enableVad": true,
-    "methodName": "WebRTC",
-    "minDuration": 30
-  },
-  "punctuationConfig": {
-    "enablePunctuation": false, # Applies punctuation
-    "serviceName": null # Force serviceName (See SubService resolution)
+    "enableVad": true,          # Enables Voice Activity Detection (default: true).
+    "methodName": "WebRTC",     # VAD method (default: WebRTC).
+    "minDuration": 30           # Minimum duration of a speech segment (default: 0).
+    "maxDuration": 1200         # Maximum duration of a speech segment (default: 1200).
   },
   "diarizationConfig": {
-    "enableDiarization": true, #Enables speaker diarization
-    "numberOfSpeaker": null, #If set, forces number of speaker
-    "maxNumberOfSpeaker": 50 #If set and and numberOfSpeaker is not, limit the maximum number of speaker.
-    "serviceName": null # Force serviceName (See SubService Resolving)
+    "enableDiarization": true,  # Enables speaker diarization or not (default: false).
+    "numberOfSpeaker": null,    # If set, forces number of speakers.
+    "maxNumberOfSpeaker": 50    # If set and `numberOfSpeaker` is not, limit the maximum number of speakers.
+    "serviceName": null         # Force serviceName (See SubService Resolving).
   },
-  "language": "fr-FR"
+  "punctuationConfig": {
+    "enablePunctuation": false, # Applies punctuation or not (default: false).
+    "serviceName": null         # Force serviceName (See SubService resolution).
+  }
 }
 ```
 
-ServiceNames can be filled to use a specific subservice version. Available services are available on /list-services.
+`serviceName` can be filled to use a specific subservice version. Available services are available on `/list-services`.
 
+The target `language` can be "`*`" for automatic language detection, or usual tags to describe a language ("fr", "fr-FR", "French" -- see https://github.com/linto-ai/linto-stt/tree/master/whisper#language).
+Note that the role of this parameter is different from the role of the env variable `LANGUAGE` which is used for text normalization
+(and limited to BCP-47 codes).
 
-
-### /transcribe-multi
+<!-- ### /transcribe-multi
 The /transcribe-multi route allows POST request containing multiple audio files. It is assumed each file contains a speaker or a group of speaker and files taken together form a conversation.
 
 The route accepts multipart/form-data requests.
@@ -244,7 +254,7 @@ Response format can be application/json or text/plain as specified in the accept
 
 |Form Parameter| Description | Required |
 |:-|:-|:-|
-|transcriptionConfigMulti|(object optionnal) A transcriptionConfig Object describing transcription parameters | See [MultiTranscription config](#multitranscription-config) |
+|transcriptionConfigMulti|(object optionnal) A transcription configuration describing transcription parameters | See [MultiTranscription config](#multitranscription-config) |
 
 
 If the request is accepted, answer should be ```201``` with a json or text response containing the jobid.
@@ -258,9 +268,9 @@ With accept: text/plain
 the-job-id
 ```
 
-<!-- #### MultiTranscription config
+#### MultiTranscription config
 
-The transcriptionConfig object describe the transcription parameters and flags of the request. It is structured as follows:
+The transcription configuration describes the transcription parameters and flags of the request. It is structured as follows:
 ```json
 {
   "punctuationConfig": {
@@ -272,7 +282,7 @@ The transcriptionConfig object describe the transcription parameters and flags o
 
 ### /job/
 
-The /job/{jobid} GET route allow you to get the state of the given transcription job.
+The `/job/{jobid}` GET route allow you to get the state of the given transcription job.
 
 Response format is application/json.
 
@@ -298,23 +308,24 @@ Response format is application/json.
 ```
 
 ### /results/
-The /results/{result_id} GET route allows you to fetch transcription result associated to a result_id.
+The `/results/{result_id}` GET route allows you to fetch transcription result associated to a `result_id`.
 
 #### Transcription results
 The accept header specifies the format of the result:
-* application/json returns the complete result as a json object; 
+* `application/json` returns the complete result as a json object; 
 ```json
 {
+  "raw_transcription": "bonjour est-ce que vous allez bien mais oui et vous",                       # Raw transcription
+  "transcription_result": "spk1: Bonjour ! Est-ce que vous allez bien ?\nspk2: Mais oui et vous ?", # Final transcription
   "confidence": 0.9, # Overall transcription confidence
-  "raw_transcription": "this is a transcription diarization and punctuation are set", # Raw transcription
   "segments": [ # Speech segment representing continious speech by a single speaker
     {
-      "duration": 5.26, # Segment duration
-      "start": 0,       # Segment start time
-      "end": 5.26,      # Segment stop time
-      "language": "en", # Segment language
       "raw_segment": "bonjour est-ce que vous allez bien", # Raw transcription of the speech segment
       "segment": "Bonjour ! Est-ce que vous allez bien ?", # Processed transcription of the segment (punctuation, normalisation, ...)
+      "start": 0,       # Segment start time
+      "end": 5.26,      # Segment stop time
+      "duration": 5.26, # Segment duration
+      "language": "en", # Segment language
       "spk_id": "spk1", # Segment speaker id
       "words": [        # Segment's words informations
         {
@@ -333,34 +344,33 @@ The accept header specifies the format of the result:
       ]
     },
     ...
-  ],
-  "transcription_result": "spk1: Bonjour ! Est-ce que vous allez bien ?\nspk2: Mais oui et vous ?" # Final transcription
+  ]
 }
 ```
-* text/plain returns the final transcription as text
+* `text/plain` returns the final transcription as text
 ```
-spk1: This is a transcription
-spk2: Diarization and punctuation are set
+spk1: Bonjour ! Est-ce que vous allez bien ?
+spk2: Mais oui et vous ?
 ```
-* text/vtt returns the transcription formated as WEBVTT captions.
+* `text/vtt` returns the transcription formated as WEBVTT captions.
 ```
-WEBVTT Kind: captions; Language: en_US
+WEBVTT Kind: captions; Language: fr
 
-00:00.000 --> 00:03.129
-This is a transcription
+00:00.000 --> 00:05.260
+Bonjour ! Est-ce que vous allez bien ?
 
-00:03.129 --> 00:07.719
-Diarization and punctuation are set
+00:05.270 --> 00:06.710
+Mais oui et vous ?
 ```
-* text/srt returns the transcription formated as SubRip Subtitle.
+* `text/srt` returns the transcription formated as SubRip Subtitle.
 ```
 1
-00:00:00,000 --> 00:00:03,129
-This is a transcription
+00:00:00,000 --> 00:00:05,260
+Bonjour ! Est-ce que vous allez bien ?
 
 2
-00:00:03,129 --> 00:00:07,719
-Diarization and punctuation are set
+00:00:05,270 --> 00:00:06,710
+Mais oui et vous ?
 ```
 #### Query string options
 Additionnaly you can specify options using query string:
@@ -383,10 +393,12 @@ __Initial request__
 ```bash
 curl -X POST "http://MY_HOST:MY_PORT/transcribe" -H  "accept: application/json" -H  "Content-Type: multipart/form-data" -F '
 transcriptionConfig={ 
+  "language": "fr-FR",
   "vadConfig": {
     "enableVad": true,
     "methodName": "WebRTC",
-    "minDuration": 30
+    "minDuration": 30,
+    "maxDuration": 1200
   },
   "enablePunctuation": {
     "enablepunctuation": false,
@@ -397,8 +409,7 @@ transcriptionConfig={
     "numberOfSpeaker": null,
     "maxNumberOfSpeaker": 50,
     "serviceName": null
-  },
-  "language": "fr-FR"
+  }
 }' -F "force_sync=" -F "file=@MY_AUDIO.wav;type=audio/x-wav"
 
 > {"jobid": "de37224e-fd9d-464d-9004-dcbf3c5b4300"}
