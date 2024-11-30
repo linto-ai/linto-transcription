@@ -212,17 +212,22 @@ Additionnaly a timestamps file can be uploaded alongside the audio file containi
 The transcriptionConfig object describe the transcription parameters and flags of the request. It is structured as follows:
 ```json
 {
+  "vadConfig": {
+    "enableVad": true,
+    "methodName": "WebRTC",
+    "minDuration": 30
+  },
   "punctuationConfig": {
     "enablePunctuation": false, # Applies punctuation
     "serviceName": null # Force serviceName (See SubService resolution)
   },
-  "enablePunctuation": false, # Applies punctuation (Do not use, kept for backward compatibility)
   "diarizationConfig": {
-    "enableDiarization": false, #Enables speaker diarization
+    "enableDiarization": true, #Enables speaker diarization
     "numberOfSpeaker": null, #If set, forces number of speaker
-    "maxNumberOfSpeaker": null #If set and and numberOfSpeaker is not, limit the maximum number of speaker.
+    "maxNumberOfSpeaker": 50 #If set and and numberOfSpeaker is not, limit the maximum number of speaker.
     "serviceName": null # Force serviceName (See SubService Resolving)
-  }
+  },
+  "language": "fr-FR"
 }
 ```
 
@@ -253,7 +258,7 @@ With accept: text/plain
 the-job-id
 ```
 
-#### MultiTranscription config
+<!-- #### MultiTranscription config
 
 The transcriptionConfig object describe the transcription parameters and flags of the request. It is structured as follows:
 ```json
@@ -263,7 +268,7 @@ The transcriptionConfig object describe the transcription parameters and flags o
     "serviceName": null # Force serviceName (See SubService resolution)
   }
 }
-```
+``` -->
 
 ### /job/
 
@@ -304,34 +309,32 @@ The accept header specifies the format of the result:
   "raw_transcription": "this is a transcription diarization and punctuation are set", # Raw transcription
   "segments": [ # Speech segment representing continious speech by a single speaker
     {
-      "duration": 3.12991, # Segment duration
-      "end": 3.12991, # Segment stop time
-      "raw_segment": "this is a transcription", # Raw transcription of the speech segment
-      "segment": "This is a transcription", # Processed transcription of the segment (punctuation, normalisation, ...)
-      "spk_id": "spk1", # Speaker id
-      "start": 0, # Segment start time
-      "words": [ # Segment's word informations
+      "duration": 5.26, # Segment duration
+      "start": 0,       # Segment start time
+      "end": 5.26,      # Segment stop time
+      "language": "en", # Segment language
+      "raw_segment": "bonjour est-ce que vous allez bien", # Raw transcription of the speech segment
+      "segment": "Bonjour ! Est-ce que vous allez bien ?", # Processed transcription of the segment (punctuation, normalisation, ...)
+      "spk_id": "spk1", # Segment speaker id
+      "words": [        # Segment's words informations
         {
-      "duration": 4.59,
-      "end": 7.71991,
-      "raw_segment": "diarization and punctuation are set",
-      "segment": "Diarization and punctuation are set",
-      "spk_id": "spk2",
-      "start": 3.12991,
-      "words": [
+          "word": "bonjour", # Word
+          "start": 0.0,      # Word start time
+          "end": 1.02,       # Word end time
+          "conf": 0.49       # Word confidence score
+        },
         {
-          "conf": 0.89654,
-          "end": 4.1382,
-          "start": 3.12991,
-          "word": "diarization"
-        }
+          "word": "est-ce",
+          "start": 3.0,
+          "end": 3.84,
+          "conf": 0.63
+        },
         ...
       ]
-    }
-      ]
-    }
+    },
+    ...
   ],
-  "transcription_result": "spk1: This is a transcription\nspk2: Diarization and punctuation are set" # Final transcription
+  "transcription_result": "spk1: Bonjour ! Est-ce que vous allez bien ?\nspk2: Mais oui et vous ?" # Final transcription
 }
 ```
 * text/plain returns the final transcription as text
@@ -378,17 +381,24 @@ Request exemple:
 
 __Initial request__
 ```bash
-curl -X POST "http://MY_HOST:MY_PORT/transcribe" -H  "accept: application/json" -H  "Content-Type: multipart/form-data" -F 'transcriptionConfig={
+curl -X POST "http://MY_HOST:MY_PORT/transcribe" -H  "accept: application/json" -H  "Content-Type: multipart/form-data" -F '
+transcriptionConfig={ 
+  "vadConfig": {
+    "enableVad": true,
+    "methodName": "WebRTC",
+    "minDuration": 30
+  },
   "enablePunctuation": {
-    "enablepunctuation": true,
-    "servicename": null
+    "enablepunctuation": false,
+    "serviceName": null
   },
   "diarizationConfig": {
     "enableDiarization": true,
     "numberOfSpeaker": null,
-    "maxNumberOfSpeaker": null,
-    "servicename": null
-  }
+    "maxNumberOfSpeaker": 50,
+    "serviceName": null
+  },
+  "language": "fr-FR"
 }' -F "force_sync=" -F "file=@MY_AUDIO.wav;type=audio/x-wav"
 
 > {"jobid": "de37224e-fd9d-464d-9004-dcbf3c5b4300"}

@@ -1,3 +1,7 @@
+# 1.3.0
+ - Add input option "language" that can be passed at each request
+ - Add result of language detection (or given language) in the output
+
 # 1.2.12
  - Do not fail when asking to convert numbers with env. variable LANGUAGE=*
 
