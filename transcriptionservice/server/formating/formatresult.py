@@ -37,6 +37,10 @@ def formatResult(
         if detected_language and detected_language != "*" and not language.startswith(detected_language):
             language = detected_language
 
+        # If STT is capable of language detection, it is probably Whisper STT, which also returns numbers...
+        # This is a ugly hack to avoid converting numbers to digits for Whisper STT (Tom said it was complicated to send convert_numbers=False...)
+        convert_numbers = False
+
     if convert_numbers:
         fulltext_cleaner = lambda text: textToNum(cleanText(text, language, user_sub), language)
     else:
