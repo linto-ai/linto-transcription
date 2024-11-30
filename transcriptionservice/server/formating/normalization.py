@@ -42,8 +42,8 @@ def _alpha2digit(text: str, language: str) -> str:
         text_small = text
         if len(text) > 200:
             text_small = text[:100] + "..." + text[-100:]
-        logger.error(f"Error converting '{text_small}' to digits: {err}")
-        raise RuntimeError(f"Error converting '{text}' to digits with {language=}") from err
+        logger.warning(f"Error converting '{text_small}' to digits with {language=} ({err})")
+        return text
 
 def cleanText(text: str, language: str, user_sub: list) -> str:
 

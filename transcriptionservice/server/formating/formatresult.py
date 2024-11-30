@@ -31,6 +31,12 @@ def formatResult(
     """
 
     language = os.environ.get("LANGUAGE", "")
+    # Get the detected language if any
+    if (not language or language == "*") and result.get("segments"):
+        detected_language = result["segments"][0].get("language")
+        if detected_language and detected_language != "*" and not language.startswith(detected_language):
+            language = detected_language
+
     if convert_numbers:
         fulltext_cleaner = lambda text: textToNum(cleanText(text, language, user_sub), language)
     else:
