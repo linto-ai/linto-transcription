@@ -60,6 +60,7 @@ class DiarizationConfig(TaskConfig):
       "enableDiarization": boolean (false),
       "numberOfSpeaker": integer (null),
       "maxNumberOfSpeaker": integer (null),
+      "speakerIdentification": string (null),
       "serviceName": string (null),
       "serviceQueue": string (null)
     }
@@ -73,6 +74,7 @@ class DiarizationConfig(TaskConfig):
         "enableDiarization": False,
         "numberOfSpeaker": None,
         "maxNumberOfSpeaker": None,
+        "speakerIdentification": None,
         "serviceName": None,
         "serviceQueue": None,
     }
@@ -101,7 +103,6 @@ class DiarizationConfig(TaskConfig):
                         self.maxNumberOfSpeaker = None
         else:
             self.enableDiarization = False
-
 
 class VADConfig(Config):
     """VADConfig parses and holds VAD related configuration.

@@ -35,8 +35,6 @@ db_info = {
     "db_name": "transcriptiondb",
 }
 
-language = os.environ.get("LANGUAGE", None)
-
 db_client = DBClient(db_info)
 
 
@@ -52,6 +50,13 @@ def transcription_task(self, task_info: dict, file_path: str):
     - "keep_audio": If False, the audio file is deleted after the task.
     - "timestamps" : (Optionnal) Audio spliting timestamps
     """
+    try:
+        return transcription_task_(self, task_info, file_path)
+    except Exception as error:
+        import traceback
+        raise Exception(f"Task failed: {str(error)}\n\n{traceback.format_exc()}")
+
+def transcription_task_(self, task_info: dict, file_path: str):
     # Logging task
     logging.basicConfig(
         filename=f"/usr/src/app/logs/{self.request.id}.txt",
@@ -106,11 +111,13 @@ def transcription_task(self, task_info: dict, file_path: str):
     logging.info(f"Converting input file to wav.")
     file_name = transcoding(file_path)
 
+    task_hash = task_info["hash"] + "-" + str(config.language)
+
     # Check for available transcription
-    logging.info(f"Checking for available transcription for {task_info['hash']}")
+    logging.info(f"Checking for available transcription for {task_hash}")
 
     if not task_info["timestamps"]:
-        available_transcription = db_client.fetch_transcription(task_info["hash"])
+        available_transcription = db_client.fetch_transcription(task_hash)
     else:
         available_transcription = None
 
@@ -118,7 +125,7 @@ def transcription_task(self, task_info: dict, file_path: str):
         logging.info("Transcription result already available")
         try:
             transcription_result = TranscriptionResult(None)
-            transcription_result.setTranscription(available_transcription["words"])
+            transcription_result.setTranscription(available_transcription["words"], available_transcription.get("words_language"))
             progress.steps["transcription"].state = StepState.DONE
             progress.steps["preprocessing"].state = StepState.DONE
         except Exception as e:
@@ -176,7 +183,7 @@ def transcription_task(self, task_info: dict, file_path: str):
             transJobId = celery.send_task(
                 name="transcribe_task",
                 queue=task_info["service_name"],
-                args=[subfile_path, True],
+                args=[subfile_path, True, config.language],
             )
             transJobIds.append((transJobId, offset, duration, subfile_path))
 
@@ -188,14 +195,17 @@ def transcription_task(self, task_info: dict, file_path: str):
             f"Processing diarization task on {config.diarizationConfig.serviceQueue}..."
         )
         progress.steps["diarization"].state = StepState.STARTED
+        args=[
+            file_name,
+            config.diarizationConfig.numberOfSpeaker,
+            config.diarizationConfig.maxNumberOfSpeaker,
+        ]
+        if config.diarizationConfig.speakerIdentification:
+            args.append(config.diarizationConfig.speakerIdentification)
         diarJobId = celery.send_task(
             name=config.diarizationConfig.task_name,
             queue=config.diarizationConfig.serviceQueue,
-            args=[
-                file_name,
-                config.diarizationConfig.numberOfSpeaker,
-                config.diarizationConfig.maxNumberOfSpeaker,
-            ],
+            args=args,
         )
         self.update_state(state="STARTED", meta=progress.toDict())
 
@@ -236,8 +246,10 @@ def transcription_task(self, task_info: dict, file_path: str):
             transcription_result = TranscriptionResult(transcriptions)
 
         # Save transcription in DB
+        words = transcription_result.words
+        words_language = transcription_result.words_language
         try:
-            db_client.push_transcription(task_info["hash"], transcription_result.words)
+            db_client.push_transcription(task_hash, words, words_language)
         except Exception as e:
             logging.warning("Failed to push transcription to DB: {}".format(e))
 
@@ -282,7 +294,7 @@ def transcription_task(self, task_info: dict, file_path: str):
     self.update_state(state="STARTED", meta=progress.toDict())
     try:
         result_id = db_client.push_result(
-            file_hash=task_info["hash"],
+            file_hash=task_hash,
             job_id=self.request.id,
             origin="origin",
             service_name=task_info["service_name"],
@@ -359,8 +371,9 @@ def transcription_task_multi(self, task_info: dict, files_info: list):
         logging.info(
             "Checking for available transcription for {}".format(file_info["filename"])
         )
+        task_hash = file_info["hash"] + "-" + str(config.language)
         try:
-            available_transcription = db_client.fetch_transcription(file_info["hash"])
+            available_transcription = db_client.fetch_transcription(task_hash)
         except Exception as e:
             logging.warning("Failed to fetch transcription: {}".format(str(e)))
             available_transcription = None

@@ -31,6 +31,16 @@ def formatResult(
     """
 
     language = os.environ.get("LANGUAGE", "")
+    # Get the detected language if any
+    if (not language or language == "*") and result.get("segments"):
+        detected_language = result["segments"][0].get("language")
+        if detected_language and detected_language != "*" and not language.startswith(detected_language):
+            language = detected_language
+
+        # If STT is capable of language detection, it is probably Whisper STT, which also returns numbers...
+        # This is a ugly hack to avoid converting numbers to digits for Whisper STT (Tom said it was complicated to send convert_numbers=False...)
+        convert_numbers = False
+
     if convert_numbers:
         fulltext_cleaner = lambda text: textToNum(cleanText(text, language, user_sub), language)
     else:
@@ -57,17 +67,15 @@ def formatResult(
         return final_result
 
     elif return_format == "text/vtt":
-        # TODO: pass "fulltext_cleaner" instead of "convert_numbers"
         t_result = TranscriptionResult.fromDict(result)
         return Subtitles(t_result, language).toVTT(
-            return_raw=raw_return, convert_numbers=convert_numbers, user_sub=user_sub
+            return_raw=raw_return, text_cleaner=fulltext_cleaner, user_sub=user_sub
         )
 
     elif return_format == "text/srt":
-        # TODO: pass "fulltext_cleaner" instead of "convert_numbers"
         t_result = TranscriptionResult.fromDict(result)
         return Subtitles(t_result, language).toSRT(
-            return_raw=raw_return, convert_numbers=convert_numbers, user_sub=user_sub
+            return_raw=raw_return, text_cleaner=fulltext_cleaner, user_sub=user_sub
         )
 
     else:
