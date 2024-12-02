@@ -195,14 +195,17 @@ def transcription_task_(self, task_info: dict, file_path: str):
             f"Processing diarization task on {config.diarizationConfig.serviceQueue}..."
         )
         progress.steps["diarization"].state = StepState.STARTED
+        args=[
+            file_name,
+            config.diarizationConfig.numberOfSpeaker,
+            config.diarizationConfig.maxNumberOfSpeaker,
+        ]
+        if config.diarizationConfig.speakerIdentification:
+            args.append(config.diarizationConfig.speakerIdentification)
         diarJobId = celery.send_task(
             name=config.diarizationConfig.task_name,
             queue=config.diarizationConfig.serviceQueue,
-            args=[
-                file_name,
-                config.diarizationConfig.numberOfSpeaker,
-                config.diarizationConfig.maxNumberOfSpeaker,
-            ],
+            args=args,
         )
         self.update_state(state="STARTED", meta=progress.toDict())
 

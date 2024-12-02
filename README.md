@@ -223,13 +223,14 @@ It is structured as follows:
   "vadConfig": {
     "enableVad": true,          # Enables Voice Activity Detection (default: true).
     "methodName": "WebRTC",     # VAD method (default: WebRTC).
-    "minDuration": 30           # Minimum duration of a speech segment (default: 0).
+    "minDuration": 30,          # Minimum duration of a speech segment (default: 0).
     "maxDuration": 1200         # Maximum duration of a speech segment (default: 1200).
   },
   "diarizationConfig": {
     "enableDiarization": true,  # Enables speaker diarization or not (default: false).
     "numberOfSpeaker": null,    # If set, forces number of speakers.
-    "maxNumberOfSpeaker": 50    # If set and `numberOfSpeaker` is not, limit the maximum number of speakers.
+    "maxNumberOfSpeaker": 50,   # If set and `numberOfSpeaker` is not, limit the maximum number of speakers.
+    "speakerIdentification": null,  # Names of speakers to identify (depends on the installation of the diarization worker).
     "serviceName": null         # Force serviceName (See SubService Resolving).
   },
   "punctuationConfig": {
@@ -244,6 +245,9 @@ It is structured as follows:
 The target `language` can be "`*`" for automatic language detection, or usual tags to describe a language ("fr", "fr-FR", "French" -- see https://github.com/linto-ai/linto-stt/tree/master/whisper#language).
 Note that the role of this parameter is different from the role of the env variable `LANGUAGE` which is used for text normalization
 (and limited to BCP-47 codes).
+
+To enable speaker identification, the `speakerIdentification` field of the diarization configuration can be set to the wildcard “`*`” to enable all speakers, or to a list of speaker names (JSON format. exemple : “`["John Doe", "Bob"]`”).
+The diarization worker must have been set so that all speaker names can be matched to a set of speech samples.
 
 <!-- ### /transcribe-multi
 The /transcribe-multi route allows POST request containing multiple audio files. It is assumed each file contains a speaker or a group of speaker and files taken together form a conversation.
