@@ -174,6 +174,7 @@ class TranscriptionResult:
         if self.words_language is None:
             self.words.sort(key=lambda x: x.start)
         else:
+            # Sort words and languages by start time (they should keep being aligned)
             assert len(self.words) == len(self.words_language)
             self.words, self.words_language = zip(*sorted(
                 zip(self.words, self.words_language), key=lambda x: x[0].start
@@ -348,6 +349,12 @@ class TranscriptionResult:
             str: Transcription without any other processing
         """
         return " ".join([w.word for w in self.words]).strip()
+    
+    @property
+    def language(self) -> str:
+        """Return the language of the transcription: either the majoritary detected language, or the language specified in the request.
+        """
+        return self.getMajorityLanguage(self.words_language)
 
     @classmethod
     def fromDict(cls, resultDict: dict):
@@ -373,6 +380,7 @@ class TranscriptionResult:
         return {
             "transcription_result": self.final_transcription,
             "raw_transcription": self.raw_transcription,
+            "language": self.language,
             "confidence": self.transcription_confidence,
             "segments": [s.json for s in self.segments],
             "diarization_segments": [seg.json for seg in self.diarizationSegments],

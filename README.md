@@ -166,12 +166,12 @@ Default service names must be declared at launch: <SERVICE_TYPE>_DEFAULT. E.g. T
 
 __Language compatibily__
 
-A subservice is compatible if its language(s) is(are) compatible with the transcription-service language:
+A subservice is compatible if its language(s) is(are) compatible with the transcription-service language.
 
-transcription-service language <-> subservice language.
+<!-- transcription-service language <-> subservice language.
 * Same BCP-27 code: fr_Fr <-> fr-FR => OK
 * Language contained: fr-FR <-> fr-FR|it_IT|en_US => OK
-* Star token (all_language): fr-FR <-> * => OK
+* Wildcard token (all_language): fr-FR <-> * => OK -->
 
 
 ### /transcribe
@@ -219,7 +219,7 @@ It permits to set:
 It is structured as follows:
 ```json
 {
-  "language": "fr",             # Target language for the transcript (default: null).
+  "language": "fr-FR",          # Target language for the transcript (default: null).
   "vadConfig": {
     "enableVad": true,          # Enables Voice Activity Detection (default: true).
     "methodName": "WebRTC",     # VAD method (default: WebRTC).
@@ -321,7 +321,8 @@ The accept header specifies the format of the result:
 {
   "raw_transcription": "bonjour est-ce que vous allez bien mais oui et vous",                       # Raw transcription
   "transcription_result": "spk1: Bonjour ! Est-ce que vous allez bien ?\nspk2: Mais oui et vous ?", # Final transcription
-  "confidence": 0.9, # Overall transcription confidence
+  "language": "fr",  # Overall transcription language (specified in the request, or majoritarily detected in the audio)
+  "confidence": 0.9, # Overall transcription confidence score
   "segments": [ # Speech segment representing continious speech by a single speaker
     {
       "raw_segment": "bonjour est-ce que vous allez bien", # Raw transcription of the speech segment
@@ -329,7 +330,7 @@ The accept header specifies the format of the result:
       "start": 0,       # Segment start time
       "end": 5.26,      # Segment stop time
       "duration": 5.26, # Segment duration
-      "language": "en", # Segment language
+      "language": "fr", # Segment language (majoritarily detected or specified in the request)
       "spk_id": "spk1", # Segment speaker id
       "words": [        # Segment's words informations
         {
