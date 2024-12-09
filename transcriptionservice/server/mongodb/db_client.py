@@ -70,14 +70,17 @@ class DBClient:
         return result["result"] if result is not None else None
 
     @mongo_error_handler
-    def push_transcription(self, file_hash: str, words: list):
+    def push_transcription(self, file_hash: str, words: list, words_language: list):
         """Insert transcription result in the SERVICE_NAME collection using file_hash as id"""
         self.transcriptions_collection.find_one_and_update(
             {"_id": file_hash},
             {
                 "$set": {
                     "datetime": datetime.fromtimestamp(time()).isoformat(),
-                    "transcription": {"words": [w.json for w in words]},
+                    "transcription": {
+                        "words": [w.json for w in words],
+                        "words_language": words_language,
+                    },
                 }
             },
             upsert=True,

@@ -21,11 +21,11 @@ from transcriptionservice.server.utils import fileHash, read_timestamps, request
 from transcriptionservice.server.utils.ressources import write_ressource
 from transcriptionservice.transcription.configs.transcriptionconfig import (
     TranscriptionConfig,
-    TranscriptionConfigMulti,
+    # Futre: TranscriptionConfigMulti,
 )
 from transcriptionservice.transcription.transcription_task import (
     transcription_task,
-    transcription_task_multi,
+    # Future: transcription_task_multi,
 )
 
 AUDIO_FOLDER = "/opt/audio"
@@ -52,7 +52,8 @@ def jobstatus(jobid):
     try:
         task = AsyncResult(jobid)
     except Exception as error:
-        return ({"state": "failed", "reason": error.message}, 500)
+        import traceback
+        return ({"state": "failed", "reason": f"{str(error)}\n\n{traceback.format_exc()}"}, 500)
     state = task.state
 
     if state == "SENT": # See below
@@ -128,73 +129,73 @@ def results(result_id):
     )
 
 
-@app.route("/transcribe-multi", methods=["POST"])
-def transcription_multi():
-    """Route for multiple audio file transcription"""
+# @app.route("/transcribe-multi", methods=["POST"])
+# def transcription_multi():
+#     """Route for multiple audio file transcription"""
 
-    files = request.files.getlist("file")
-    if not len(files):
-        return "Not file attached to request", 400
+#     files = request.files.getlist("file")
+#     if not len(files):
+#         return "Not file attached to request", 400
 
-    if len(files) == 1:
-        return "For single file transcription, use the /transcribe route", 400
+#     if len(files) == 1:
+#         return "For single file transcription, use the /transcribe route", 400
 
-    # Header check
-    expected_format = request.headers.get("accept")
-    if not expected_format in SUPPORTED_HEADER_FORMAT:
-        return (
-            "Accept format {} not supported. Supported MIME types are :{}".format(
-                expected_format, " ".join(SUPPORTED_HEADER_FORMAT)
-            ),
-            400,
-        )
+#     # Header check
+#     expected_format = request.headers.get("accept")
+#     if not expected_format in SUPPORTED_HEADER_FORMAT:
+#         return (
+#             "Accept format {} not supported. Supported MIME types are :{}".format(
+#                 expected_format, " ".join(SUPPORTED_HEADER_FORMAT)
+#             ),
+#             400,
+#         )
 
-    # Files
-    random_hash = fileHash(os.urandom(32))
-    audios = []
-    for audio_file in files:
-        file_buffer = audio_file.read()
-        file_hash = fileHash(file_buffer)
-        file_ext = audio_file.filename.split(".")[-1]
-        try:
-            file_path = write_ressource(file_buffer, f"{file_hash}_{random_hash}", AUDIO_FOLDER, file_ext)
-        except Exception as e:
-            logger.error("Failed to write ressource: {}".format(e))
-            return "Server Error: Failed to write ressource", 500
-        audios.append(
-            {
-                "filename": audio_file.filename,
-                "hash": file_hash,
-                "file_path": file_path,
-            }
-        )
-    # Parse transcription config
-    try:
-        transcription_config = TranscriptionConfigMulti(
-            request.form.get("transcriptionConfig", {})
-        )
-        logger.debug(transcription_config)
-    except Exception:
-        logger.debug(request.form.get("transcriptionConfig", {}))
-        return "Failed to interpret transcription config", 400
+#     # Files
+#     random_hash = fileHash(os.urandom(32))
+#     audios = []
+#     for audio_file in files:
+#         file_buffer = audio_file.read()
+#         file_hash = fileHash(file_buffer)
+#         file_ext = audio_file.filename.split(".")[-1]
+#         try:
+#             file_path = write_ressource(file_buffer, f"{file_hash}_{random_hash}", AUDIO_FOLDER, file_ext)
+#         except Exception as e:
+#             logger.error("Failed to write ressource: {}".format(e))
+#             return "Server Error: Failed to write ressource", 500
+#         audios.append(
+#             {
+#                 "filename": audio_file.filename,
+#                 "hash": file_hash,
+#                 "file_path": file_path,
+#             }
+#         )
+#     # Parse transcription config
+#     try:
+#         transcription_config = TranscriptionConfigMulti(
+#             request.form.get("transcriptionConfig", {})
+#         )
+#         logger.debug(transcription_config)
+#     except Exception:
+#         logger.debug(request.form.get("transcriptionConfig", {}))
+#         return "Failed to interpret transcription config", 400
 
-    # Task info
-    task_info = {
-        "transcription_config": transcription_config.toJson(),
-        "service_name": config.service_name,
-        "hash": file_hash,
-        "keep_audio": config.keep_audio,
-    }
+#     # Task info
+#     task_info = {
+#         "transcription_config": transcription_config.toJson(),
+#         "service_name": config.service_name,
+#         "hash": file_hash,
+#         "keep_audio": config.keep_audio,
+#     }
 
-    task = transcription_task_multi.apply_async(
-        queue=config.service_name + "_requests", args=[task_info, audios]
-    )
-    logger.debug(f"Create trancription task with id {task.id}")
-    return (
-        json.dumps({"jobid": task.id})
-        if expected_format == "application/json"
-        else task.id
-    ), 201
+#     task = transcription_task_multi.apply_async(
+#         queue=config.service_name + "_requests", args=[task_info, audios]
+#     )
+#     logger.debug(f"Create transcription task with id {task.id}")
+#     return (
+#         json.dumps({"jobid": task.id})
+#         if expected_format == "application/json"
+#         else task.id
+#     ), 201
 
 
 @app.route("/transcribe", methods=["POST"])
@@ -207,6 +208,7 @@ def transcription():
         logger.warning(
             "Received multiple files at once. Multifile is not supported yet, n>1 file are ignored"
         )
+        return ("Multiple file transcription not implemented (/transcribe-multi route must be re-implemented)", 400)
 
     # Files
     ## Audio file
@@ -274,7 +276,7 @@ def transcription():
     task = transcription_task.apply_async(
         queue=config.service_name + "_requests", args=[task_info, file_path]
     )
-    logger.debug(f"Create trancription task with id {task.id}")
+    logger.debug(f"Create transcription task with id {task.id}")
     # Forced synchronous
     if force_sync:
         result_id = task.get()

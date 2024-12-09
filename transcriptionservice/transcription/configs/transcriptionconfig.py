@@ -14,22 +14,22 @@ class TranscriptionConfig(Config):
     Expected configuration format is as follows:
     ```json
     {
-      "transcribePerChannel": boolean (false),
-      "enablePunctuation": boolean (false),
-      "enableDiarization": boolean (false),
-      "vadConfig": obect VADConfig (WebRTC)
+      "vadConfig": obect VADConfig (WebRTC),
+      "language": string (null),
       "diarizationConfig": object DiarizationConfig (null),
-      "punctuationConfig": object PunctuationConfig (null)
+      "punctuationConfig": object PunctuationConfig (null),
+      "enablePunctuation": boolean (false)
     }
     ```
     """
 
     _keys_default = {
-        "transcribePerChannel": False,
-        "enablePunctuation": False,  # Kept for backward compatibility
+        "vadConfig": VADConfig(),
+        "language": None,
         "diarizationConfig": DiarizationConfig(),
         "punctuationConfig": PunctuationConfig(),
-        "vadConfig": VADConfig(),
+        "enablePunctuation": None,  # Kept for backward compatibility
+        # "transcribePerChannel": False,
     }
 
     def __init__(self, config: Union[str, dict] = {}):
@@ -49,8 +49,8 @@ class TranscriptionConfig(Config):
         if isinstance(self.vadConfig, dict):
             self.vadConfig = VADConfig(self.vadConfig)
 
-        if self.enablePunctuation:
-            self.punctuationConfig.enablePunctuation = True
+        if self.enablePunctuation is not None:
+            self.punctuationConfig.enablePunctuation = self.enablePunctuation
 
     def __eq__(self, other):
         if isinstance(other, TranscriptionConfig):
@@ -63,21 +63,3 @@ class TranscriptionConfig(Config):
     def __str__(self) -> str:
         return json.dumps(self.toJson())
 
-
-class TranscriptionConfigMulti(Config):
-    """TranscriptionConfigMulti parses and holds transcription request configuration for multi file transcription.
-    Expected configuration format is as follows:
-    """
-
-    _keys_default = {
-        "punctuationConfig": PunctuationConfig(),
-        "useFileNameAsSpkId": False,
-    }
-
-    def __init__(self, config: Union[str, dict] = {}):
-        super().__init__(config)
-        self._checkConfig()
-
-    @property
-    def tasks(self) -> list:
-        return [self.punctuationConfig]

@@ -293,18 +293,35 @@ components:
     transcriptionConfig:
       type: object
       properties:
-        punctuationConfig:
+        language:
+          type: string
+          default: null
+        vadConfig:
           type: object
-          $ref: '#/components/schemas/punctuationConfig'
+          $ref: '#/components/schemas/vadConfig'
         diarizationConfig:
           type: object
           $ref: '#/components/schemas/diarizationConfig'
-    multiTranscriptionConfig:
-      type: object
-      properties:
         punctuationConfig:
           type: object
           $ref: '#/components/schemas/punctuationConfig'
+
+    vadConfig:
+      type: object
+      properties:
+        enableVad:
+          type: boolean
+          default: false
+        methodName:
+          type: string
+          default: "WebRTC"
+        minDuration:
+          type: number
+          default: 0
+        maxDuration:
+          type: number
+          default: 1200
+
 
     diarizationConfig:
       type: object
