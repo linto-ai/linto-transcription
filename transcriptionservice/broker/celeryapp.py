@@ -25,8 +25,7 @@ celery.conf.update(
     {
         "task_routes": {
             "transcription_task": {"queue": "{}_requests".format(service_name)},
-            # Not Implemented
-            # "transcription_task_multi": {"queue": "{}_requests".format(service_name)},
+            # Future: "transcription_task_multi": {"queue": "{}_requests".format(service_name)},
         }
     }
 )

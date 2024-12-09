@@ -63,21 +63,3 @@ class TranscriptionConfig(Config):
     def __str__(self) -> str:
         return json.dumps(self.toJson())
 
-
-class TranscriptionConfigMulti(Config):
-    """TranscriptionConfigMulti parses and holds transcription request configuration for multi file transcription.
-    Expected configuration format is as follows:
-    """
-
-    _keys_default = {
-        "punctuationConfig": PunctuationConfig(),
-        "useFileNameAsSpkId": False,
-    }
-
-    def __init__(self, config: Union[str, dict] = {}):
-        super().__init__(config)
-        self._checkConfig()
-
-    @property
-    def tasks(self) -> list:
-        return [self.punctuationConfig]
