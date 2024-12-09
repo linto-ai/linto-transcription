@@ -170,6 +170,10 @@ class TranscriptionResult:
         self.diarizationSegments = [self.diarizationSegments[i] for i in range(len(self.diarizationSegments)) \
             if i == 0 or self.diarizationSegments[i].seg_end > self.diarizationSegments[i-1].seg_end]
 
+        # Corner case: no diarization (can happen on empty audio)
+        if not self.diarizationSegments:
+            return self.setNoDiarization()
+
         # Sort words by start time
         if self.words_language is None:
             self.words.sort(key=lambda x: x.start)
