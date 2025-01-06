@@ -6,7 +6,7 @@ The service allows you to:
 * Request asynchronous transcriptions from a variety of audio or video files formats.
 * Specify transcription subtask such as diarization and punctuation.
 * Follow transcription task state and progress.
-* Automaticaly store transcription results in a database.
+* Automatically store transcription results in a database (so that the same audio file does not have to be transcribed multiple times).
 * Fetch transcription results with different formats and options.
 
 ## Table of content
